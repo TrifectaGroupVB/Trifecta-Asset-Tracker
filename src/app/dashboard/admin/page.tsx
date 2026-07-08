@@ -1,0 +1,221 @@
+import Link from "next/link";
+import { PinGate } from "@/components/dashboard/PinGate";
+import { prisma } from "@/lib/db";
+import { hasDashboardSession } from "@/lib/session";
+import { saveTechRow, updateAdminEmail, changePin } from "./actions";
+
+const MESSAGES: Record<string, { text: string; kind: "ok" | "error" }> = {
+  "wrong-pin": { text: "Current PIN is wrong.", kind: "error" },
+  "bad-pin": { text: "New PIN must be exactly 6 digits.", kind: "error" },
+  "pin-changed": { text: "PIN updated.", kind: "ok" },
+};
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; ok?: string }>;
+}) {
+  if (!(await hasDashboardSession())) return <PinGate />;
+
+  const { error, ok } = await searchParams;
+  const message = MESSAGES[error ?? ok ?? ""];
+
+  const [equipment, techs, adminEmail] = await Promise.all([
+    prisma.equipment.findMany({ orderBy: { name: "asc" } }),
+    prisma.tech.findMany({ orderBy: { name: "asc" } }),
+    prisma.setting.findUnique({ where: { key: "adminEmail" } }),
+  ]);
+
+  const inputClass =
+    "h-12 w-full rounded-sm border border-border bg-surface px-3 placeholder:text-text-muted";
+
+  return (
+    <main className="p-4 pb-16">
+      <h1 className="font-display text-3xl font-semibold uppercase tracking-wide">
+        Admin
+      </h1>
+
+      {message && (
+        <p
+          className={`mt-3 rounded-sm border px-3 py-2 text-sm ${
+            message.kind === "ok"
+              ? "border-status-completed/50 text-status-completed"
+              : "border-danger/50 text-danger"
+          }`}
+        >
+          {message.text}
+        </p>
+      )}
+
+      {/* Equipment */}
+      <section className="mt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+            Equipment
+          </h2>
+          <Link
+            href="/dashboard/admin/equipment/new"
+            className="flex min-h-12 items-center px-2 font-display uppercase tracking-wide text-accent"
+          >
+            + Add equipment
+          </Link>
+        </div>
+        <ul className="divide-y divide-border border-y border-border">
+          {equipment.map((eq) => (
+            <li key={eq.id}>
+              <Link
+                href={`/dashboard/admin/equipment/${eq.id}`}
+                className="flex min-h-12 items-center gap-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-display font-semibold uppercase tracking-wide">
+                    {eq.name}
+                  </p>
+                  <p className="text-sm text-text-muted">
+                    {eq.manufacturer}{" "}
+                    <span className="font-mono whitespace-nowrap">{eq.model}</span>
+                  </p>
+                </div>
+                <span aria-hidden className="text-text-muted">
+                  ›
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Techs */}
+      <section className="mt-8">
+        <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+          Techs
+        </h2>
+        <ul className="mt-2 flex flex-col gap-3">
+          {techs.map((t) => (
+            <li key={t.id}>
+              <form
+                action={saveTechRow}
+                className="flex flex-col gap-2 rounded-sm border border-border p-3"
+              >
+                <input type="hidden" name="techId" value={t.id} />
+                <input name="name" defaultValue={t.name} aria-label="Name" required className={inputClass} />
+                <input name="email" type="email" defaultValue={t.email} aria-label="Email" required className={inputClass} />
+                <input name="phone" defaultValue={t.phone} aria-label="Phone" required className={`${inputClass} font-mono`} />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    name="intent"
+                    value="save"
+                    className="h-12 flex-1 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="submit"
+                    name="intent"
+                    value="delete"
+                    className="h-12 rounded-sm border border-danger/50 px-4 font-display uppercase tracking-wide text-danger"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </form>
+            </li>
+          ))}
+        </ul>
+        <form
+          action={saveTechRow}
+          className="mt-3 flex flex-col gap-2 rounded-sm border border-dashed border-border p-3"
+        >
+          <p className="font-display text-xs uppercase tracking-widest text-text-muted">
+            Add a tech
+          </p>
+          <input name="name" placeholder="Name" aria-label="New tech name" required className={inputClass} />
+          <input name="email" type="email" placeholder="Email" aria-label="New tech email" required className={inputClass} />
+          <input name="phone" placeholder="Phone" aria-label="New tech phone" required className={`${inputClass} font-mono`} />
+          <button
+            type="submit"
+            className="h-12 rounded-sm bg-accent font-display font-semibold uppercase tracking-wide text-bg"
+          >
+            Add tech
+          </button>
+        </form>
+      </section>
+
+      {/* Settings */}
+      <section className="mt-8">
+        <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+          Settings
+        </h2>
+        <form
+          action={updateAdminEmail}
+          className="mt-2 flex flex-col gap-2 rounded-sm border border-border p-3"
+        >
+          <label
+            htmlFor="adminEmail"
+            className="font-display text-xs uppercase tracking-widest text-text-muted"
+          >
+            Admin email (part orders go here)
+          </label>
+          <input
+            id="adminEmail"
+            name="adminEmail"
+            type="email"
+            defaultValue={adminEmail?.value ?? ""}
+            required
+            className={inputClass}
+          />
+          <button
+            type="submit"
+            className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
+          >
+            Save email
+          </button>
+        </form>
+
+        <form
+          action={changePin}
+          className="mt-3 flex flex-col gap-2 rounded-sm border border-border p-3"
+        >
+          <p className="font-display text-xs uppercase tracking-widest text-text-muted">
+            Change PIN
+          </p>
+          <label htmlFor="currentPin" className="sr-only">
+            Current PIN
+          </label>
+          <input
+            id="currentPin"
+            name="currentPin"
+            type="password"
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            placeholder="Current PIN"
+            required
+            className={`${inputClass} font-mono`}
+          />
+          <label htmlFor="newPin" className="sr-only">
+            New PIN
+          </label>
+          <input
+            id="newPin"
+            name="newPin"
+            type="password"
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            placeholder="New 6-digit PIN"
+            required
+            className={`${inputClass} font-mono`}
+          />
+          <button
+            type="submit"
+            className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
+          >
+            Change PIN
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}

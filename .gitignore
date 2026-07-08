@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# sqlite database (pre-Postgres era, kept as local backups)
+prisma/dev.db
+prisma/dev.db-journal
+prisma/dev.db.sqlite-backup
+prisma/migrations-sqlite-backup/
+
+# uploaded photos and manuals (local storage; swap to Vercel Blob at deploy)
+/public/uploads/*
+!/public/uploads/.gitkeep

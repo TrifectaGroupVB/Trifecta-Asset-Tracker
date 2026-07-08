@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Trifecta Asset Tracker design tokens.
+ * These are the ONLY colors allowed in components — never hardcode hex values.
+ * Accent (safety orange) is reserved for primary buttons, urgency, and active states.
+ */
+@theme {
+  --color-bg: #1a1d21;
+  --color-surface: #24282e;
+  --color-border: #33383f;
+  --color-text: #e8eaed;
+  --color-text-muted: #9aa0a8;
+  --color-accent: #ff6b1a;
+  --color-danger: #e5484d; /* muted red — expired warranty, destructive actions */
+
+  --color-status-open: #ff6b1a;
+  --color-status-assigned: #ffb020;
+  --color-status-progress: #3b82f6;
+  --color-status-completed: #22c55e;
 }
 
+/* Font vars are set on <html> by next/font in layout.tsx */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-barlow-condensed), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+/* Visible keyboard focus everywhere interactive */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Subtle pulse for overdue urgent requests — the only animation on the dashboard */
+@keyframes pulse-urgent {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* PIN pad wrong-guess shake */
+@keyframes shake-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pulse-urgent {
+    animation: pulse-urgent 2s ease-in-out infinite;
+  }
+  .animate-shake {
+    animation: shake-x 0.4s ease-in-out;
+  }
+}
+
+/* Sticker sheets print on white regardless of the app theme */
+@media print {
+  body {
+    background: white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

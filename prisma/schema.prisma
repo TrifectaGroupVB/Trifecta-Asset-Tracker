@@ -1,0 +1,187 @@
+// Trifecta Asset Tracker — data model
+// SQLite has no native enums: urgency, status, and tag role are strings
+// validated against the constants in src/lib/constants.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Equipment {
+  id              String    @id @default(cuid())
+  name            String
+  manufacturer    String
+  model           String
+  serial          String
+  location        String
+  installDate     DateTime?
+  photoUrl        String?
+  warrantyExpires DateTime?
+  notes           String?
+
+  specFields      SpecField[]
+  manuals         ManualFile[]
+  parts           Part[]
+  serviceRequests ServiceRequest[]
+  serviceRecords  ServiceRecord[]
+  partOrders      PartOrder[]
+  tags            Tag[]
+}
+
+model SpecField {
+  id          String @id @default(cuid())
+  equipmentId String
+  label       String
+  value       String
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+}
+
+model ManualFile {
+  id          String @id @default(cuid())
+  equipmentId String
+  title       String
+  fileUrl     String
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+}
+
+model Part {
+  id          String  @id @default(cuid())
+  equipmentId String
+  name        String
+  partNumber  String
+  price       Float?
+  photoUrl    String?
+
+  equipment  Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  orderLines PartOrderLine[]
+
+  @@index([equipmentId])
+}
+
+model Tech {
+  id    String @id @default(cuid())
+  name  String
+  email String
+  phone String
+
+  serviceRequests ServiceRequest[]
+}
+
+model ServiceRequest {
+  id            String    @id @default(cuid())
+  // Sequential; displayed as SR-0001 via formatRequestNumber().
+  // Next number is computed in a transaction (max + 1) at creation time.
+  requestNumber Int       @unique
+  equipmentId   String
+  requesterName String
+  description   String
+  photoUrl      String?
+  urgency       String    @default("NORMAL") // LOW | NORMAL | URGENT
+  status        String    @default("OPEN") // OPEN | ASSIGNED | IN_PROGRESS | COMPLETED
+  techId        String?
+  internalNotes String?
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  equipment      Equipment       @relation(fields: [equipmentId], references: [id])
+  tech           Tech?           @relation(fields: [techId], references: [id], onDelete: SetNull)
+  serviceRecords ServiceRecord[]
+  events         RequestEvent[]
+
+  @@index([equipmentId])
+  @@index([status])
+}
+
+// Timeline entries and internal notes for a service request.
+// kind STATUS → status-change entries ("Assigned to Dana Whitfield", "Completed")
+// kind NOTE → append-only internal notes
+model RequestEvent {
+  id               String   @id @default(cuid())
+  serviceRequestId String
+  kind             String // STATUS | NOTE
+  text             String
+  createdAt        DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+}
+
+model ServiceRecord {
+  id               String   @id @default(cuid())
+  equipmentId      String
+  serviceRequestId String?
+  date             DateTime
+  techName         String
+  workPerformed    String
+  partsUsed        String?
+
+  equipment      Equipment       @relation(fields: [equipmentId], references: [id])
+  serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId])
+}
+
+model PartOrder {
+  id            String   @id @default(cuid())
+  // Sequential; displayed as PO-0001 via formatOrderNumber().
+  orderNumber   Int      @unique
+  equipmentId   String
+  requesterName String
+  createdAt     DateTime @default(now())
+
+  equipment Equipment       @relation(fields: [equipmentId], references: [id])
+  lines     PartOrderLine[]
+}
+
+model PartOrderLine {
+  id          String @id @default(cuid())
+  partOrderId String
+  partId      String
+  qty         Int
+
+  partOrder PartOrder @relation(fields: [partOrderId], references: [id], onDelete: Cascade)
+  part      Part      @relation(fields: [partId], references: [id])
+
+  @@index([partOrderId])
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  code        String    @unique // 8 chars, URL-safe, printed on the physical tag
+  role        String    @default("UNASSIGNED") // UNASSIGNED | EQUIPMENT | SERVICE_REQUEST
+  equipmentId String?
+  label       String? // e.g. "Front kitchen wall"
+  batchId     String
+  assignedAt  DateTime?
+  voided      Boolean   @default(false)
+
+  equipment Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  batch     TagBatch   @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
+}
+
+model TagBatch {
+  id          String   @id @default(cuid())
+  batchNumber Int      @unique
+  createdAt   DateTime @default(now())
+  count       Int
+
+  tags Tag[]
+}
+
+model Setting {
+  key   String @id // adminEmail, dashboardPin, restaurantName, restaurantAddress
+  value String
+}

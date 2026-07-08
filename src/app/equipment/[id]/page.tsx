@@ -1,0 +1,112 @@
+import { stat } from "node:fs/promises";
+import path from "node:path";
+import { notFound } from "next/navigation";
+import { DataPlate } from "@/components/DataPlate";
+import { EquipmentTabs } from "@/components/equipment/EquipmentTabs";
+import { prisma } from "@/lib/db";
+import { formatDate, formatFileSize } from "@/lib/format";
+
+async function fileSizeFor(fileUrl: string): Promise<number | null> {
+  try {
+    // Blob-hosted files (absolute URLs) report size via Content-Length;
+    // local dev files come off the disk.
+    if (fileUrl.startsWith("http")) {
+      const res = await fetch(fileUrl, { method: "HEAD" });
+      const len = res.headers.get("content-length");
+      return len ? Number(len) : null;
+    }
+    const s = await stat(path.join(process.cwd(), "public", fileUrl));
+    return s.size;
+  } catch {
+    return null;
+  }
+}
+
+export default async function EquipmentDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const eq = await prisma.equipment.findUnique({
+    where: { id },
+    include: {
+      specFields: true,
+      manuals: true,
+      parts: { orderBy: { name: "asc" } },
+      serviceRecords: { orderBy: { date: "desc" } },
+    },
+  });
+  if (!eq) notFound();
+
+  const manuals = await Promise.all(
+    eq.manuals.map(async (m) => ({
+      id: m.id,
+      title: m.title,
+      fileUrl: m.fileUrl,
+      sizeLabel: formatFileSize(await fileSizeFor(m.fileUrl)),
+    }))
+  );
+
+  // Server component — renders once per request, so "now" is stable here.
+  const warrantyActive =
+    eq.warrantyExpires != null &&
+    // eslint-disable-next-line react-hooks/purity
+    eq.warrantyExpires.getTime() > Date.now();
+
+  return (
+    <main className="mx-auto w-full max-w-2xl">
+      <div className="p-4 pb-0">
+        <DataPlate
+          title={eq.name}
+          subtitle={eq.manufacturer}
+          photoUrl={eq.photoUrl}
+          fields={[
+            { label: "Model", value: eq.model },
+            { label: "Serial", value: eq.serial },
+            { label: "Location", value: eq.location, mono: false },
+            { label: "Installed", value: formatDate(eq.installDate) },
+            {
+              label: "Warranty",
+              value:
+                eq.warrantyExpires == null ? (
+                  <span className="text-text-muted">UNKNOWN</span>
+                ) : warrantyActive ? (
+                  <span className="text-status-completed">
+                    ACTIVE until {formatDate(eq.warrantyExpires)}
+                  </span>
+                ) : (
+                  <span className="text-danger/90">EXPIRED</span>
+                ),
+              wide: true,
+            },
+          ]}
+        />
+      </div>
+
+      <EquipmentTabs
+        equipmentId={eq.id}
+        equipmentName={eq.name}
+        specFields={eq.specFields.map((s) => ({
+          id: s.id,
+          label: s.label,
+          value: s.value,
+        }))}
+        manuals={manuals}
+        parts={eq.parts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          partNumber: p.partNumber,
+          price: p.price,
+        }))}
+        records={eq.serviceRecords.map((r) => ({
+          id: r.id,
+          date: formatDate(r.date),
+          techName: r.techName,
+          workPerformed: r.workPerformed,
+          partsUsed: r.partsUsed,
+        }))}
+      />
+    </main>
+  );
+}
