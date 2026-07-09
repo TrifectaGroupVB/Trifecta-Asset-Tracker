@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { selectLocation } from "@/app/location-actions";
 
 type LocationOption = { id: string; slug: string; name: string };
@@ -28,6 +28,7 @@ export function LocationMenu({
   currentLocationId: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click / Escape — a dropdown that only closes by
@@ -68,26 +69,31 @@ export function LocationMenu({
           role="menu"
           className="absolute right-0 top-[calc(100%+0.5rem)] w-56 overflow-hidden rounded-sm border border-border bg-surface"
         >
-          {/* Plain form-per-item submission — a cookie-mutating Server
-              Action here triggers a same-response re-render of the route,
-              but that re-render reconciles into this component in place
-              rather than remounting it, so "open" isn't reset for free.
-              Closing on click (rather than waiting on the action's result)
-              closes it the instant it's tapped and sidesteps that entirely. */}
+          {/* type="button", not a submitted <form> — a submit button whose
+              own click handler unmounts it (closing the menu) can race the
+              browser's native form-submission default action and lose: the
+              button disappears from the DOM before the submit ever fires,
+              so only the close happens. Closing state first, then firing
+              the action as a separate step, sidesteps that entirely. */}
           {locations.map((l) => (
-            <form key={l.id} action={selectLocation}>
-              <input type="hidden" name="slug" value={l.slug} />
-              <button
-                type="submit"
-                role="menuitem"
-                onClick={() => setOpen(false)}
-                className={`flex min-h-12 w-full items-center border-b border-border/50 px-3 text-left font-display text-sm uppercase tracking-wide last:border-b-0 ${
-                  l.id === currentLocationId ? "text-accent" : "text-text"
-                }`}
-              >
-                {l.name}
-              </button>
-            </form>
+            <button
+              key={l.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                const formData = new FormData();
+                formData.set("slug", l.slug);
+                startTransition(() => {
+                  selectLocation(formData);
+                });
+              }}
+              className={`flex min-h-12 w-full items-center border-b border-border/50 px-3 text-left font-display text-sm uppercase tracking-wide last:border-b-0 ${
+                l.id === currentLocationId ? "text-accent" : "text-text"
+              }`}
+            >
+              {l.name}
+            </button>
           ))}
         </div>
       )}
