@@ -6,6 +6,10 @@ import { PrintButton } from "@/components/tags/PrintButton";
 import { prisma } from "@/lib/db";
 import { hasDashboardSession } from "@/lib/session";
 
+// Sticker dimensions here MUST stay in sync with the constants in
+// src/lib/stickerExport.ts (Tailwind arbitrary-value classes can't reference
+// a shared JS constant, so these are kept in sync by hand).
+
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export default async function PrintBatchPage({
@@ -51,6 +55,12 @@ export default async function PrintBatchPage({
         <h1 className="flex-1 font-display text-xl font-semibold uppercase tracking-wide">
           Batch #{batch.batchNumber} — {batch.tags.length} stickers
         </h1>
+        <a
+          href={`/dashboard/tags/print/${batch.batchNumber}/export`}
+          className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
+        >
+          Download Images
+        </a>
         <PrintButton />
       </div>
 
@@ -59,13 +69,13 @@ export default async function PrintBatchPage({
         {stickers.map((s) => (
           <div
             key={s.code}
-            className="flex h-[2.5in] w-[2in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
+            className="flex h-[3.4in] w-[2.5in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/watermans-mark.png"
+              src="/brand/watermans-logo-full.png"
               alt=""
-              className="h-[0.4in] w-auto object-contain"
+              className="h-auto w-[2.1in] object-contain"
             />
             <div
               aria-hidden
