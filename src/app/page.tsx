@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { selectLocation } from "@/app/location-actions";
+import { LocationMenu } from "@/components/LocationMenu";
 import { resolveLocation } from "@/lib/location";
 
 const LINKS = [
@@ -9,37 +9,16 @@ const LINKS = [
   { href: "/dashboard", label: "Dashboard", sub: "Staff only — PIN required" },
 ];
 
-// Short button labels for the toggle — full legal names are too long for a
-// corner pill (e.g. "The Shack on 8th" → "Shack").
-const SHORT_LABEL: Record<string, string> = {
-  watermans: "Waterman's",
-  chix: "Chix",
-  shack: "Shack",
-};
-
 export default async function Home() {
   const { location, locations } = await resolveLocation();
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center gap-8 p-6">
       {locations.length > 1 && (
-        <div className="absolute right-3 top-3 flex gap-1">
-          {locations.map((l) => (
-            <form key={l.id} action={selectLocation}>
-              <input type="hidden" name="slug" value={l.slug} />
-              <button
-                type="submit"
-                className={`flex h-9 items-center rounded-sm border px-2.5 font-display text-xs font-semibold uppercase tracking-wide ${
-                  location?.id === l.id
-                    ? "border-accent text-accent"
-                    : "border-border text-text-muted"
-                }`}
-              >
-                {SHORT_LABEL[l.slug] ?? l.name}
-              </button>
-            </form>
-          ))}
-        </div>
+        <LocationMenu
+          locations={locations}
+          currentLocationId={location?.id ?? null}
+        />
       )}
 
       {location && (
