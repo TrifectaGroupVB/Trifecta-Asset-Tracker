@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { verifyPin } from "@/app/dashboard/auth-actions";
+import { AppHeader } from "@/components/AppHeader";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"] as const;
 
@@ -56,7 +57,9 @@ export function PinGate({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center p-6">
+    <>
+      <AppHeader />
+      <main className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-sm flex-col items-center justify-center p-6">
       <h1 className="text-center font-display text-2xl font-semibold uppercase tracking-wide">
         {title}
       </h1>
@@ -95,6 +98,7 @@ export function PinGate({
       </div>
 
       {checking && <p className="mt-6 text-sm text-text-muted">Checking…</p>}
-    </main>
+      </main>
+    </>
   );
 }

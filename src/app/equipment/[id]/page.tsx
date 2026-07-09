@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { notFound } from "next/navigation";
+import { AppHeader } from "@/components/AppHeader";
 import { DataPlate } from "@/components/DataPlate";
 import { EquipmentTabs } from "@/components/equipment/EquipmentTabs";
 import { prisma } from "@/lib/db";
@@ -55,7 +56,9 @@ export default async function EquipmentDetailPage({
     eq.warrantyExpires.getTime() > Date.now();
 
   return (
-    <main className="mx-auto w-full max-w-2xl">
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-2xl">
       <div className="p-4 pb-0">
         <DataPlate
           title={eq.name}
@@ -107,6 +110,7 @@ export default async function EquipmentDetailPage({
           partsUsed: r.partsUsed,
         }))}
       />
-    </main>
+      </main>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/AppHeader";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { TagWizard } from "@/components/tags/TagWizard";
 import { prisma } from "@/lib/db";
@@ -12,21 +13,24 @@ export const metadata: Metadata = {
 
 function InactiveTag() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col items-center justify-center p-6 text-center">
-      <h1 className="font-display text-2xl font-semibold uppercase tracking-wide">
-        This tag isn&rsquo;t active
-      </h1>
-      <p className="mt-2 text-text-muted">
-        It may have been retired or replaced. If it&rsquo;s stuck on a machine that
-        needs service, you can still file a request.
-      </p>
-      <Link
-        href="/request"
-        className="mt-6 inline-flex h-12 items-center rounded-sm bg-accent px-5 font-display font-semibold uppercase tracking-wide text-bg"
-      >
-        Report a problem
-      </Link>
-    </main>
+    <>
+      <AppHeader />
+      <main className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-sm flex-col items-center justify-center p-6 text-center">
+        <h1 className="font-display text-2xl font-semibold uppercase tracking-wide">
+          This tag isn&rsquo;t active
+        </h1>
+        <p className="mt-2 text-text-muted">
+          It may have been retired or replaced. If it&rsquo;s stuck on a machine that
+          needs service, you can still file a request.
+        </p>
+        <Link
+          href="/request"
+          className="mt-6 inline-flex h-12 items-center rounded-sm bg-accent px-5 font-display font-semibold uppercase tracking-wide text-bg"
+        >
+          Report a problem
+        </Link>
+      </main>
+    </>
   );
 }
 

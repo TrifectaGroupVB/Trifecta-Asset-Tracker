@@ -8,6 +8,7 @@ import {
   createEquipmentAndAssignTag,
   type AssignTagResult,
 } from "@/app/t/[code]/actions";
+import { AppHeader } from "@/components/AppHeader";
 import { DataPlate } from "@/components/DataPlate";
 
 type EquipmentOption = { id: string; name: string; location: string };
@@ -97,7 +98,9 @@ export function TagWizard({
 
   if (done) {
     return (
-      <main className="mx-auto w-full max-w-2xl p-4 py-8">
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-2xl p-4 py-8">
         <DataPlate
           title="Tag Assigned"
           subtitle="Setup complete"
@@ -135,13 +138,16 @@ export function TagWizard({
             View equipment
           </Link>
         )}
-      </main>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl p-4 py-8">
-      <p className="font-mono text-sm text-text-muted">TAG {code}</p>
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-2xl p-4 py-8">
+        <p className="font-mono text-sm text-text-muted">TAG {code}</p>
 
       {step === "role" && (
         <>
@@ -325,6 +331,7 @@ export function TagWizard({
           </form>
         </>
       )}
-    </main>
+      </main>
+    </>
   );
 }

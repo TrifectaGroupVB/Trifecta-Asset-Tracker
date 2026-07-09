@@ -172,8 +172,34 @@ export async function saveTechRow(formData: FormData) {
   const techId = str(formData, "techId");
   const intent = str(formData, "intent");
   if (intent === "delete" && techId) {
-    await prisma.tech.delete({ where: { id: techId } });
+    // The tech FK is onDelete: SetNull — that clears techId on any assigned
+    // requests but leaves `status` at ASSIGNED/IN_PROGRESS, which would show
+    // as "ASSIGNED" with no tech in the queue. Revert those back to OPEN so
+    // the queue stays honest that nobody is currently on it.
+    const tech = await prisma.tech.findUnique({ where: { id: techId } });
+    const orphaned = await prisma.serviceRequest.findMany({
+      where: { techId, status: { in: ["ASSIGNED", "IN_PROGRESS"] } },
+      select: { id: true },
+    });
+    await prisma.$transaction([
+      ...orphaned.flatMap((r) => [
+        prisma.serviceRequest.update({
+          where: { id: r.id },
+          data: { status: "OPEN" },
+        }),
+        prisma.requestEvent.create({
+          data: {
+            serviceRequestId: r.id,
+            kind: "STATUS",
+            text: `Reopened — ${tech?.name ?? "assigned tech"} was removed`,
+          },
+        }),
+      ]),
+      prisma.tech.delete({ where: { id: techId } }),
+    ]);
     revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard");
+    orphaned.forEach((r) => revalidatePath(`/dashboard/requests/${r.id}`));
     return;
   }
   const name = str(formData, "name");
