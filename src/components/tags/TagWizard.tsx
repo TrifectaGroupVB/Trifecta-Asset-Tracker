@@ -61,9 +61,11 @@ function BackButton({ onClick }: { onClick: () => void }) {
 export function TagWizard({
   code,
   equipment,
+  restaurantName,
 }: {
   code: string;
   equipment: EquipmentOption[];
+  restaurantName: string;
 }) {
   const [step, setStep] = useState<Step>("role");
   const [search, setSearch] = useState("");
@@ -148,6 +150,9 @@ export function TagWizard({
       <AppHeader />
       <main className="mx-auto w-full max-w-2xl p-4 py-8">
         <p className="font-mono text-sm text-text-muted">TAG {code}</p>
+        <p className="font-display text-xs uppercase tracking-widest text-accent">
+          {restaurantName}
+        </p>
 
       {step === "role" && (
         <>

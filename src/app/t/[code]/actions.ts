@@ -14,7 +14,10 @@ export type AssignTagResult =
   | { ok: false; error: string };
 
 async function claimableTag(code: string) {
-  const tag = await prisma.tag.findUnique({ where: { code } });
+  const tag = await prisma.tag.findUnique({
+    where: { code },
+    include: { batch: true },
+  });
   if (!tag || tag.voided) return null;
   if (tag.role !== "UNASSIGNED") return null;
   return tag;
@@ -39,6 +42,8 @@ export async function assignTagToEquipment(
   ]);
   if (!tag) return { ok: false, error: "This tag was already set up or voided." };
   if (!equipment) return { ok: false, error: "That equipment no longer exists." };
+  if (equipment.restaurantId !== tag.batch.restaurantId)
+    return { ok: false, error: "That equipment belongs to a different location." };
 
   await prisma.tag.update({
     where: { id: tag.id },
@@ -82,7 +87,15 @@ export async function createEquipmentAndAssignTag(
   }
 
   const equipment = await prisma.equipment.create({
-    data: { name, manufacturer, model, serial, location, photoUrl },
+    data: {
+      restaurantId: tag.batch.restaurantId,
+      name,
+      manufacturer,
+      model,
+      serial,
+      location,
+      photoUrl,
+    },
   });
   await prisma.tag.update({
     where: { id: tag.id },

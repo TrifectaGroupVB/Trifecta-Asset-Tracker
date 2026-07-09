@@ -42,6 +42,8 @@ export default async function EquipmentEditorPage({
   const { error } = await searchParams;
   const isNew = id === "new";
 
+  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+
   const eq = isNew
     ? null
     : await prisma.equipment.findUnique({
@@ -79,7 +81,28 @@ export default async function EquipmentEditorPage({
         className="mt-4 rounded-sm border border-border p-3"
       >
         {!isNew && <input type="hidden" name="id" value={eq!.id} />}
-        <label htmlFor="name" className={`${labelClass} mt-0`}>Name</label>
+        {locations.length > 1 && (
+          <>
+            <label htmlFor="restaurantId" className={`${labelClass} mt-0`}>Restaurant</label>
+            <select
+              id="restaurantId"
+              name="restaurantId"
+              defaultValue={eq?.restaurantId ?? ""}
+              required
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Choose a location…
+              </option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <label htmlFor="name" className={locations.length > 1 ? labelClass : `${labelClass} mt-0`}>Name</label>
         <input id="name" name="name" defaultValue={eq?.name ?? ""} required className={inputClass} />
         <label htmlFor="manufacturer" className={labelClass}>Manufacturer</label>
         <input id="manufacturer" name="manufacturer" defaultValue={eq?.manufacturer ?? ""} required className={inputClass} />

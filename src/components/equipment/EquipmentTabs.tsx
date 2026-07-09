@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { DataPlate } from "@/components/DataPlate";
 import {
+  addServiceRecord,
   submitPartOrder,
 } from "@/app/equipment/[id]/actions";
 import { formatOrderNumber, formatPrice } from "@/lib/format";
+
+function todayInputValue(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 type SpecField = { id: string; label: string; value: string };
 type Manual = { id: string; title: string; fileUrl: string; sizeLabel: string };
@@ -51,6 +59,8 @@ function PdfIcon() {
 export function EquipmentTabs({
   equipmentId,
   equipmentName,
+  canEdit = false,
+  techNames = [],
   specFields,
   manuals,
   parts,
@@ -58,11 +68,14 @@ export function EquipmentTabs({
 }: {
   equipmentId: string;
   equipmentName: string;
+  canEdit?: boolean;
+  techNames?: string[];
   specFields: SpecField[];
   manuals: Manual[];
   parts: Part[];
   records: ServiceRecordRow[];
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("OVERVIEW");
   const [view, setView] = useState<"tabs" | "review" | "confirmed">("tabs");
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -70,6 +83,42 @@ export function EquipmentTabs({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
+
+  const [showAddHistory, setShowAddHistory] = useState(false);
+  const [historyDate, setHistoryDate] = useState(todayInputValue);
+  const [historyTech, setHistoryTech] = useState("");
+  const [historyWork, setHistoryWork] = useState("");
+  const [historyParts, setHistoryParts] = useState("");
+  const [historySubmitting, setHistorySubmitting] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  async function handleAddHistory() {
+    setHistorySubmitting(true);
+    setHistoryError(null);
+    try {
+      const result = await addServiceRecord({
+        equipmentId,
+        date: historyDate,
+        techName: historyTech,
+        workPerformed: historyWork,
+        partsUsed: historyParts,
+      });
+      if (result.ok) {
+        setShowAddHistory(false);
+        setHistoryDate(todayInputValue());
+        setHistoryTech("");
+        setHistoryWork("");
+        setHistoryParts("");
+        router.refresh();
+      } else {
+        setHistoryError(result.error);
+      }
+    } catch {
+      setHistoryError("Something went wrong saving this entry. Please try again.");
+    } finally {
+      setHistorySubmitting(false);
+    }
+  }
 
   const selected = parts.filter((p) => (qty[p.id] ?? 0) > 0);
   const totalQty = selected.reduce((sum, p) => sum + qty[p.id], 0);
@@ -357,6 +406,124 @@ export function EquipmentTabs({
 
       {tab === "HISTORY" && (
         <div className="p-4">
+          {canEdit && (
+            <div className="mb-4">
+              {!showAddHistory ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddHistory(true)}
+                  className="flex h-12 w-full items-center justify-center rounded-sm border border-accent font-display text-sm font-semibold uppercase tracking-wide text-accent"
+                >
+                  + Quick Add History
+                </button>
+              ) : (
+                <form
+                  className="rounded-sm border border-border bg-surface p-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void handleAddHistory();
+                  }}
+                >
+                  <p className="font-display text-xs uppercase tracking-widest text-text-muted">
+                    Add Service Record
+                  </p>
+
+                  <label
+                    htmlFor="historyDate"
+                    className="mt-3 block font-display text-xs uppercase tracking-widest text-text-muted"
+                  >
+                    Date
+                  </label>
+                  <input
+                    id="historyDate"
+                    type="date"
+                    required
+                    value={historyDate}
+                    onChange={(e) => setHistoryDate(e.target.value)}
+                    className="mt-1 h-12 w-full rounded-sm border border-border bg-bg px-3 font-mono text-text"
+                  />
+
+                  <label
+                    htmlFor="historyTech"
+                    className="mt-3 block font-display text-xs uppercase tracking-widest text-text-muted"
+                  >
+                    Tech name
+                  </label>
+                  <input
+                    id="historyTech"
+                    type="text"
+                    required
+                    list="history-tech-names"
+                    value={historyTech}
+                    onChange={(e) => setHistoryTech(e.target.value)}
+                    placeholder="Who did the work?"
+                    className="mt-1 h-12 w-full rounded-sm border border-border bg-bg px-3 text-text placeholder:text-text-muted"
+                  />
+                  <datalist id="history-tech-names">
+                    {techNames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+
+                  <label
+                    htmlFor="historyWork"
+                    className="mt-3 block font-display text-xs uppercase tracking-widest text-text-muted"
+                  >
+                    Work performed
+                  </label>
+                  <textarea
+                    id="historyWork"
+                    required
+                    rows={3}
+                    value={historyWork}
+                    onChange={(e) => setHistoryWork(e.target.value)}
+                    placeholder="What was done?"
+                    className="mt-1 w-full rounded-sm border border-border bg-bg px-3 py-2 text-text placeholder:text-text-muted"
+                  />
+
+                  <label
+                    htmlFor="historyParts"
+                    className="mt-3 block font-display text-xs uppercase tracking-widest text-text-muted"
+                  >
+                    Parts used (optional)
+                  </label>
+                  <input
+                    id="historyParts"
+                    type="text"
+                    value={historyParts}
+                    onChange={(e) => setHistoryParts(e.target.value)}
+                    placeholder="e.g. gasket P-1023"
+                    className="mt-1 h-12 w-full rounded-sm border border-border bg-bg px-3 font-mono text-text placeholder:font-sans placeholder:text-text-muted"
+                  />
+
+                  {historyError && (
+                    <p className="mt-2 text-sm text-danger">{historyError}</p>
+                  )}
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddHistory(false);
+                        setHistoryError(null);
+                      }}
+                      className="h-12 flex-1 rounded-sm border border-border font-display text-sm font-semibold uppercase tracking-wide text-text-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={historySubmitting}
+                      className="h-12 flex-1 rounded-sm bg-accent font-display text-sm font-semibold uppercase tracking-wide text-bg disabled:opacity-60"
+                    >
+                      {historySubmitting ? "Saving…" : "Save Entry"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
           {records.length === 0 ? (
             <p className="text-text-muted">No service history yet.</p>
           ) : (

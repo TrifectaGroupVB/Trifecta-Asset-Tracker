@@ -13,6 +13,10 @@ async function assertSession() {
 export async function generateTagBatch(formData: FormData) {
   await assertSession();
   const count = Math.min(100, Math.max(1, Number(formData.get("count") ?? 20) || 20));
+  const restaurantId =
+    String(formData.get("restaurantId") ?? "") ||
+    (await prisma.location.findFirst())?.id;
+  if (!restaurantId) return;
 
   const existing = await prisma.tag.findMany({ select: { code: true } });
   const taken = new Set(existing.map((t) => t.code));
@@ -22,6 +26,7 @@ export async function generateTagBatch(formData: FormData) {
     data: {
       batchNumber: (max._max.batchNumber ?? 0) + 1,
       count,
+      restaurantId,
       tags: {
         create: Array.from({ length: count }, () => ({
           code: generateTagCode(taken),

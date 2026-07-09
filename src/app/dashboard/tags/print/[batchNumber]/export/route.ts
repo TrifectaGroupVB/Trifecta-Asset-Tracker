@@ -19,17 +19,21 @@ export async function GET(
   }
 
   const { batchNumber } = await params;
-  const [batch, restaurantNameSetting] = await Promise.all([
-    prisma.tagBatch.findUnique({
-      where: { batchNumber: Number(batchNumber) },
-      include: { tags: { where: { voided: false }, orderBy: { code: "asc" } } },
-    }),
-    prisma.setting.findUnique({ where: { key: "restaurantName" } }),
-  ]);
+  const batch = await prisma.tagBatch.findUnique({
+    where: { batchNumber: Number(batchNumber) },
+    include: {
+      tags: { where: { voided: false }, orderBy: { code: "asc" } },
+      restaurant: true,
+    },
+  });
   if (!batch) return new NextResponse("Batch not found", { status: 404 });
 
-  const restaurantName = restaurantNameSetting?.value ?? "Trifecta";
-  const stickers = await renderBatchStickerPngs(batch.tags, BASE_URL, restaurantName);
+  const stickers = await renderBatchStickerPngs(
+    batch.tags,
+    BASE_URL,
+    batch.restaurant.name,
+    batch.restaurant.printLogoUrl ?? batch.restaurant.logoUrl
+  );
 
   const zip = new JSZip();
   for (const s of stickers) {

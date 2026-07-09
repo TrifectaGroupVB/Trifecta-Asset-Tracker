@@ -41,7 +41,10 @@ export default async function TagPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const tag = await prisma.tag.findUnique({ where: { code: code.toUpperCase() } });
+  const tag = await prisma.tag.findUnique({
+    where: { code: code.toUpperCase() },
+    include: { batch: { include: { restaurant: true } } },
+  });
 
   if (!tag || tag.voided) return <InactiveTag />;
 
@@ -51,9 +54,11 @@ export default async function TagPage({
   }
 
   if (tag.role === "SERVICE_REQUEST") {
-    redirect(
-      tag.label ? `/request?from=${encodeURIComponent(tag.label)}` : "/request"
-    );
+    // Carry the tag's own location through so the request form shows that
+    // location's equipment, regardless of what's currently toggled at home.
+    const params = new URLSearchParams({ location: tag.batch.restaurant.slug });
+    if (tag.label) params.set("from", tag.label);
+    redirect(`/request?${params.toString()}`);
   }
 
   // UNASSIGNED → setup wizard, PIN-gated so a guest scan can't claim a sticker
@@ -63,10 +68,20 @@ export default async function TagPage({
     );
   }
 
+  // Scoped to this tag's own restaurant — a blank Chix tag can only be
+  // pointed at Chix equipment (or create new equipment, which inherits the
+  // same restaurant automatically).
   const equipment = await prisma.equipment.findMany({
+    where: { restaurantId: tag.batch.restaurantId },
     select: { id: true, name: true, location: true },
     orderBy: { name: "asc" },
   });
 
-  return <TagWizard code={tag.code} equipment={equipment} />;
+  return (
+    <TagWizard
+      code={tag.code}
+      equipment={equipment}
+      restaurantName={tag.batch.restaurant.name}
+    />
+  );
 }

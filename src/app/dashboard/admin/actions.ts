@@ -43,6 +43,7 @@ function refreshEquipment(id: string) {
 export async function saveEquipmentDetails(formData: FormData) {
   await assertSession();
   const id = str(formData, "id");
+  const restaurantId = str(formData, "restaurantId");
   const data = {
     name: str(formData, "name"),
     manufacturer: str(formData, "manufacturer"),
@@ -57,10 +58,19 @@ export async function saveEquipmentDetails(formData: FormData) {
     return;
 
   if (id) {
-    await prisma.equipment.update({ where: { id }, data });
+    await prisma.equipment.update({
+      where: { id },
+      data: { ...data, ...(restaurantId ? { restaurantId } : {}) },
+    });
     refreshEquipment(id);
   } else {
-    const created = await prisma.equipment.create({ data });
+    // No location picker shown (only one location exists) — fall back to it.
+    const fallbackRestaurantId =
+      restaurantId || (await prisma.location.findFirst())?.id;
+    if (!fallbackRestaurantId) return;
+    const created = await prisma.equipment.create({
+      data: { ...data, restaurantId: fallbackRestaurantId },
+    });
     revalidatePath("/dashboard/admin");
     redirect(`/dashboard/admin/equipment/${created.id}`);
   }
@@ -240,6 +250,17 @@ export async function saveTechRow(formData: FormData) {
 }
 
 // ---- Settings ----
+
+export async function updateLocation(formData: FormData) {
+  await assertSession();
+  const id = str(formData, "id");
+  const name = str(formData, "name");
+  const address = str(formData, "address");
+  if (!id || !name || !address) return;
+  await prisma.location.update({ where: { id }, data: { name, address } });
+  revalidatePath("/dashboard/admin");
+  revalidatePath("/");
+}
 
 export async function updateAdminEmail(formData: FormData) {
   await assertSession();

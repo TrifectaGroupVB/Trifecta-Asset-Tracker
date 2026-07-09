@@ -24,14 +24,17 @@ export default async function RequestDetailPage({
   const request = await prisma.serviceRequest.findUnique({
     where: { id },
     include: {
-      equipment: true,
+      equipment: { include: { restaurant: true } },
       tech: true,
       events: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!request) notFound();
 
-  const techs = await prisma.tech.findMany({ orderBy: { name: "asc" } });
+  const [techs, locationCount] = await Promise.all([
+    prisma.tech.findMany({ orderBy: { name: "asc" } }),
+    prisma.location.count(),
+  ]);
   const statusEvents = request.events.filter((e) => e.kind === "STATUS");
   const notes = request.events.filter((e) => e.kind === "NOTE");
 
@@ -55,6 +58,15 @@ export default async function RequestDetailPage({
           subtitle={request.equipment.manufacturer}
           badge={<span className="text-sm text-accent">View →</span>}
           fields={[
+            ...(locationCount > 1
+              ? [
+                  {
+                    label: "Restaurant",
+                    value: request.equipment.restaurant.name,
+                    mono: false,
+                  },
+                ]
+              : []),
             { label: "Model", value: request.equipment.model },
             { label: "Location", value: request.equipment.location, mono: false },
           ]}

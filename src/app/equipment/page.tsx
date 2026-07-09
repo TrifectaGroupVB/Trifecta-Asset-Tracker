@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/AppHeader";
 import { prisma } from "@/lib/db";
+import { resolveLocation } from "@/lib/location";
 
-// Lightweight index for when someone doesn't have the QR tag handy.
+// Lightweight index for when someone doesn't have the QR tag handy. Scoped
+// to whichever location the visitor picked on the home screen.
 export default async function EquipmentIndexPage({
   searchParams,
 }: {
@@ -10,15 +12,19 @@ export default async function EquipmentIndexPage({
 }) {
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
+  const { location, locations } = await resolveLocation();
 
-  const equipment = await prisma.equipment.findMany({
-    where: query
-      ? {
-          OR: [{ name: { contains: query } }, { model: { contains: query } }],
-        }
-      : undefined,
-    orderBy: { name: "asc" },
-  });
+  const equipment = location
+    ? await prisma.equipment.findMany({
+        where: {
+          restaurantId: location.id,
+          ...(query
+            ? { OR: [{ name: { contains: query } }, { model: { contains: query } }] }
+            : {}),
+        },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   return (
     <>
@@ -27,6 +33,14 @@ export default async function EquipmentIndexPage({
         <h1 className="mt-2 font-display text-3xl font-semibold uppercase tracking-wide">
           Equipment
         </h1>
+        {location && locations.length > 1 && (
+          <p className="mt-1 text-sm text-text-muted">
+            {location.name} —{" "}
+            <Link href="/" className="text-accent underline underline-offset-4">
+              Switch location
+            </Link>
+          </p>
+        )}
 
         <form action="/equipment" className="mt-4 flex gap-2">
           <label htmlFor="q" className="sr-only">
@@ -50,10 +64,16 @@ export default async function EquipmentIndexPage({
 
         {equipment.length === 0 ? (
           <p className="mt-8 text-text-muted">
-            No equipment matches “{query}”.{" "}
-            <Link href="/equipment" className="text-accent underline underline-offset-4">
-              Clear search
-            </Link>
+            {query ? (
+              <>
+                No equipment matches “{query}”.{" "}
+                <Link href="/equipment" className="text-accent underline underline-offset-4">
+                  Clear search
+                </Link>
+              </>
+            ) : (
+              "No equipment on file at this location yet."
+            )}
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-border border-y border-border">

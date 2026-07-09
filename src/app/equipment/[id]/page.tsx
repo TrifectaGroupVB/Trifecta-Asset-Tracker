@@ -46,6 +46,9 @@ export default async function EquipmentDetailPage({
   // both issue the same session cookie) get the edit shortcut. No session
   // means no badge at all, not a link that bounces to a PIN prompt.
   const canEdit = await hasDashboardSession();
+  const techs = canEdit
+    ? await prisma.tech.findMany({ orderBy: { name: "asc" } })
+    : [];
 
   const manuals = await Promise.all(
     eq.manuals.map(async (m) => ({
@@ -107,6 +110,8 @@ export default async function EquipmentDetailPage({
       <EquipmentTabs
         equipmentId={eq.id}
         equipmentName={eq.name}
+        canEdit={canEdit}
+        techNames={techs.map((t) => t.name)}
         specFields={eq.specFields.map((s) => ({
           id: s.id,
           label: s.label,

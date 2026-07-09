@@ -20,16 +20,16 @@ export default async function PrintBatchPage({
   if (!(await hasDashboardSession())) return <PinGate />;
 
   const { batchNumber } = await params;
-  const [batch, restaurantName] = await Promise.all([
-    prisma.tagBatch.findUnique({
-      where: { batchNumber: Number(batchNumber) },
-      include: { tags: { where: { voided: false }, orderBy: { code: "asc" } } },
-    }),
-    prisma.setting
-      .findUnique({ where: { key: "restaurantName" } })
-      .then((s) => s?.value ?? "Trifecta"),
-  ]);
+  const batch = await prisma.tagBatch.findUnique({
+    where: { batchNumber: Number(batchNumber) },
+    include: {
+      tags: { where: { voided: false }, orderBy: { code: "asc" } },
+      restaurant: true,
+    },
+  });
   if (!batch) notFound();
+  const restaurantName = batch.restaurant.name;
+  const logoUrl = batch.restaurant.printLogoUrl ?? batch.restaurant.logoUrl;
 
   const stickers = await Promise.all(
     batch.tags.map(async (tag) => ({
@@ -53,7 +53,7 @@ export default async function PrintBatchPage({
           ‹ Tags
         </Link>
         <h1 className="flex-1 font-display text-xl font-semibold uppercase tracking-wide">
-          Batch #{batch.batchNumber} — {batch.tags.length} stickers
+          Batch #{batch.batchNumber} — {restaurantName} — {batch.tags.length} stickers
         </h1>
         <a
           href={`/dashboard/tags/print/${batch.batchNumber}/export`}
@@ -71,12 +71,13 @@ export default async function PrintBatchPage({
             key={s.code}
             className="flex h-[3.4in] w-[2.5in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/watermans-logo-full.png"
-              alt=""
-              className="h-auto w-[2.1in] object-contain"
-            />
+            {/* Fixed logo box (not just width) so square badges (e.g. Shack)
+                shrink to fit instead of overflowing the sticker — object-contain
+                needs both dimensions bounded, or a 1:1 logo renders 2.1in tall. */}
+            <div className="flex h-[1.28in] w-[2.1in] items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+            </div>
             <div
               aria-hidden
               className="mt-[0.05in] size-[1.25in] [&_svg]:size-full"

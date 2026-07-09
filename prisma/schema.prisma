@@ -11,8 +11,28 @@ datasource db {
   provider = "postgresql"
 }
 
+// A single restaurant location (Waterman's, Chix, The Shack, ...). Distinct
+// from Equipment.location, which is the spot *within* a restaurant.
+model Location {
+  id        String   @id @default(cuid())
+  slug      String   @unique // URL-safe short id, e.g. "watermans"
+  name      String
+  address   String
+  logoUrl   String
+  // Optional override for print materials (sticker sheets), used when the
+  // main logoUrl isn't legible on a white background — e.g. Chix's app logo
+  // is a white wordmark for the dark theme, so print uses a navy version.
+  // Falls back to logoUrl when null.
+  printLogoUrl String?
+  createdAt    DateTime @default(now())
+
+  equipment  Equipment[]
+  tagBatches TagBatch[]
+}
+
 model Equipment {
   id              String    @id @default(cuid())
+  restaurantId    String
   name            String
   manufacturer    String
   model           String
@@ -23,6 +43,7 @@ model Equipment {
   warrantyExpires DateTime?
   notes           String?
 
+  restaurant      Location         @relation(fields: [restaurantId], references: [id])
   specFields      SpecField[]
   manuals         ManualFile[]
   parts           Part[]
@@ -30,6 +51,8 @@ model Equipment {
   serviceRecords  ServiceRecord[]
   partOrders      PartOrder[]
   tags            Tag[]
+
+  @@index([restaurantId])
 }
 
 model SpecField {
@@ -174,16 +197,20 @@ model Tag {
 }
 
 model TagBatch {
-  id          String   @id @default(cuid())
-  batchNumber Int      @unique
-  createdAt   DateTime @default(now())
-  count       Int
+  id           String   @id @default(cuid())
+  batchNumber  Int      @unique
+  restaurantId String
+  createdAt    DateTime @default(now())
+  count        Int
 
-  tags Tag[]
+  restaurant Location @relation(fields: [restaurantId], references: [id])
+  tags       Tag[]
+
+  @@index([restaurantId])
 }
 
 model Setting {
-  key   String @id // adminEmail, dashboardPin, restaurantName, restaurantAddress
+  key   String @id // adminEmail, dashboardPin
   value String
 }
 

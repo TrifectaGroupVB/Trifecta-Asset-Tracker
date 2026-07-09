@@ -1,8 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { formatOrderNumber } from "@/lib/format";
+import { hasDashboardSession } from "@/lib/session";
 
 export type SubmitPartOrderResult =
   | { ok: true; orderNumber: number }
@@ -24,7 +26,7 @@ export async function submitPartOrder(input: {
 
   const equipment = await prisma.equipment.findUnique({
     where: { id: input.equipmentId },
-    include: { parts: true },
+    include: { parts: true, restaurant: true },
   });
   if (!equipment) return { ok: false, error: "Equipment not found." };
 
@@ -44,12 +46,10 @@ export async function submitPartOrder(input: {
     });
   });
 
-  const settings = await prisma.setting.findMany({
-    where: { key: { in: ["adminEmail", "restaurantName"] } },
-  });
-  const adminEmail = settings.find((s) => s.key === "adminEmail")?.value;
-  const restaurantName =
-    settings.find((s) => s.key === "restaurantName")?.value ?? "";
+  const adminEmail = (
+    await prisma.setting.findUnique({ where: { key: "adminEmail" } })
+  )?.value;
+  const restaurantName = equipment.restaurant.name;
 
   const orderLabel = formatOrderNumber(order.orderNumber);
   const lineText = lines
@@ -80,4 +80,48 @@ export async function submitPartOrder(input: {
   }
 
   return { ok: true, orderNumber: order.orderNumber };
+}
+
+export type AddServiceRecordResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function addServiceRecord(input: {
+  equipmentId: string;
+  date: string;
+  techName: string;
+  workPerformed: string;
+  partsUsed: string;
+}): Promise<AddServiceRecordResult> {
+  if (!(await hasDashboardSession()))
+    return { ok: false, error: "Not authorized." };
+
+  const techName = input.techName.trim();
+  const workPerformed = input.workPerformed.trim();
+  const partsUsed = input.partsUsed.trim();
+  const date = new Date(input.date);
+
+  if (Number.isNaN(date.getTime()))
+    return { ok: false, error: "Please enter a valid date." };
+  if (!techName) return { ok: false, error: "Please enter who did the work." };
+  if (!workPerformed)
+    return { ok: false, error: "Please describe the work performed." };
+
+  const equipment = await prisma.equipment.findUnique({
+    where: { id: input.equipmentId },
+  });
+  if (!equipment) return { ok: false, error: "Equipment not found." };
+
+  await prisma.serviceRecord.create({
+    data: {
+      equipmentId: equipment.id,
+      date,
+      techName,
+      workPerformed,
+      partsUsed: partsUsed || null,
+    },
+  });
+
+  revalidatePath(`/equipment/${equipment.id}`);
+  return { ok: true };
 }

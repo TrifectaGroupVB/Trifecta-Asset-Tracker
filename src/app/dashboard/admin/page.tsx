@@ -5,7 +5,7 @@ import { PinGate } from "@/components/dashboard/PinGate";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/db";
 import { hasDashboardSession } from "@/lib/session";
-import { saveTechRow, updateAdminEmail, changePin } from "./actions";
+import { saveTechRow, updateAdminEmail, updateLocation, changePin } from "./actions";
 
 const MESSAGES: Record<string, { text: string; kind: "ok" | "error" }> = {
   "wrong-pin": { text: "Current PIN is wrong.", kind: "error" },
@@ -23,11 +23,15 @@ export default async function AdminPage({
   const { error, ok } = await searchParams;
   const message = MESSAGES[error ?? ok ?? ""];
 
-  const [equipment, techs, adminEmail, credentials] = await Promise.all([
-    prisma.equipment.findMany({ orderBy: { name: "asc" } }),
+  const [equipment, techs, adminEmail, credentials, locations] = await Promise.all([
+    prisma.equipment.findMany({
+      orderBy: { name: "asc" },
+      include: { restaurant: { select: { name: true } } },
+    }),
     prisma.tech.findMany({ orderBy: { name: "asc" } }),
     prisma.setting.findUnique({ where: { key: "adminEmail" } }),
     prisma.webAuthnCredential.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.location.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   const inputClass =
@@ -72,8 +76,15 @@ export default async function AdminPage({
                 className="flex min-h-12 items-center gap-3 py-2"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-display font-semibold uppercase tracking-wide">
-                    {eq.name}
+                  <p className="flex items-center gap-2">
+                    <span className="font-display font-semibold uppercase tracking-wide">
+                      {eq.name}
+                    </span>
+                    {locations.length > 1 && (
+                      <span className="font-display text-xs uppercase tracking-widest text-text-muted">
+                        {eq.restaurant.name}
+                      </span>
+                    )}
                   </p>
                   <p className="text-sm text-text-muted">
                     {eq.manufacturer}{" "}
@@ -182,6 +193,36 @@ export default async function AdminPage({
           <BiometricEnrollButton />
         </div>
       </section>
+
+      {/* Locations */}
+      {locations.length > 1 && (
+        <section className="mt-8">
+          <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+            Locations
+          </h2>
+          <ul className="mt-2 flex flex-col gap-3">
+            {locations.map((l) => (
+              <li key={l.id}>
+                <form
+                  action={updateLocation}
+                  className="flex flex-col gap-2 rounded-sm border border-border p-3"
+                >
+                  <input type="hidden" name="id" value={l.id} />
+                  <input name="name" defaultValue={l.name} aria-label="Name" required className={inputClass} />
+                  <input name="address" defaultValue={l.address} aria-label="Address" required className={inputClass} />
+                  <p className="font-mono text-xs text-text-muted">{l.logoUrl}</p>
+                  <button
+                    type="submit"
+                    className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
+                  >
+                    Save
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Settings */}
       <section className="mt-8">

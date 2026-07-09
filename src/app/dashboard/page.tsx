@@ -13,18 +13,34 @@ const FOUR_HOURS_MS = 4 * 3_600_000;
 export default async function DashboardQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; location?: string }>;
 }) {
   if (!(await hasDashboardSession())) return <PinGate />;
 
-  const { status: statusParam = "ALL", q = "" } = await searchParams;
+  const {
+    status: statusParam = "ALL",
+    q = "",
+    location: locationParam = "ALL",
+  } = await searchParams;
   const statusFilter = (STATUSES as readonly string[]).includes(statusParam)
     ? (statusParam as Status)
     : "ALL";
 
-  const all = await prisma.serviceRequest.findMany({
-    include: { equipment: { select: { id: true, name: true } }, tech: true },
-  });
+  const [all, locations] = await Promise.all([
+    prisma.serviceRequest.findMany({
+      include: {
+        equipment: {
+          select: { id: true, name: true, restaurant: { select: { slug: true, name: true } } },
+        },
+        tech: true,
+      },
+    }),
+    prisma.location.findMany({ orderBy: { name: "asc" } }),
+  ]);
+  const locationFilter =
+    locationParam === "ALL" || locations.some((l) => l.slug === locationParam)
+      ? locationParam
+      : "ALL";
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -50,6 +66,9 @@ export default async function DashboardQueuePage({
   const queryNumber = /^(?:sr-?)?0*(\d+)$/i.exec(query)?.[1];
   const requests = all
     .filter((r) => (statusFilter === "ALL" ? true : r.status === statusFilter))
+    .filter((r) =>
+      locationFilter === "ALL" ? true : r.equipment.restaurant.slug === locationFilter
+    )
     .filter((r) => {
       if (!query) return true;
       if (r.equipment.name.toLowerCase().includes(query)) return true;
@@ -67,6 +86,17 @@ export default async function DashboardQueuePage({
     ...STATUSES.map((s) => ({ key: s, label: STATUS_LABELS[s] })),
   ];
 
+  function withParams(overrides: Record<string, string>): string {
+    const params = new URLSearchParams();
+    const status = overrides.status ?? statusFilter;
+    const location = overrides.location ?? locationFilter;
+    if (status !== "ALL") params.set("status", status);
+    if (location !== "ALL") params.set("location", location);
+    if (query) params.set("q", q);
+    const qs = params.toString();
+    return qs ? `/dashboard?${qs}` : "/dashboard";
+  }
+
   return (
     <main className="p-4 pb-16">
       <h1 className="sr-only">Service request queue</h1>
@@ -79,15 +109,11 @@ export default async function DashboardQueuePage({
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
         {chips.map((c) => {
-          const href =
-            c.key === "ALL"
-              ? `/dashboard${query ? `?q=${encodeURIComponent(q)}` : ""}`
-              : `/dashboard?status=${c.key}${query ? `&q=${encodeURIComponent(q)}` : ""}`;
           const active = statusFilter === c.key;
           return (
             <Link
               key={c.key}
-              href={href}
+              href={withParams({ status: c.key })}
               className={`flex h-12 shrink-0 items-center rounded-sm border px-3 font-display text-sm uppercase tracking-wide ${
                 active
                   ? "border-accent text-accent"
@@ -100,9 +126,33 @@ export default async function DashboardQueuePage({
         })}
       </div>
 
+      {locations.length > 1 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+          {[{ slug: "ALL", name: "All locations" }, ...locations].map((l) => {
+            const active = locationFilter === l.slug;
+            return (
+              <Link
+                key={l.slug}
+                href={withParams({ location: l.slug })}
+                className={`flex h-9 shrink-0 items-center rounded-sm border px-2.5 font-display text-xs uppercase tracking-wide ${
+                  active
+                    ? "border-accent text-accent"
+                    : "border-border text-text-muted"
+                }`}
+              >
+                {l.name}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
       <form action="/dashboard" className="mt-3 flex gap-2">
         {statusFilter !== "ALL" && (
           <input type="hidden" name="status" value={statusFilter} />
+        )}
+        {locationFilter !== "ALL" && (
+          <input type="hidden" name="location" value={locationFilter} />
         )}
         <label htmlFor="q" className="sr-only">
           Search by equipment or SR number
@@ -169,6 +219,11 @@ export default async function DashboardQueuePage({
                     <p className="mt-1 flex flex-wrap items-center gap-2">
                       <UrgencyBadge urgency={r.urgency as never} pulse={overdue} />
                       <StatusBadge status={r.status as never} />
+                      {locations.length > 1 && (
+                        <span className="font-display text-xs uppercase tracking-widest text-text-muted">
+                          {r.equipment.restaurant.name}
+                        </span>
+                      )}
                       <span className="text-xs text-text-muted">
                         {formatAge(r.createdAt, now)}
                       </span>

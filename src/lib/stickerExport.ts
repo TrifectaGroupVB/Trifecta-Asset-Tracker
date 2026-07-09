@@ -9,7 +9,13 @@ import sharp, { type OverlayOptions } from "sharp";
 const DPI = 300;
 const STICKER_WIDTH_IN = 2.5;
 const STICKER_HEIGHT_IN = 3.4;
-const LOGO_WIDTH_IN = 2.1;
+// A bounding box, not just a width — a square logo (e.g. Shack's circular
+// badge) scaled to a fixed *width* would render far taller than a landscape
+// logo (e.g. Waterman's) and overflow the sticker. Every logo is fit inside
+// this box (aspect preserved, shrink-only) and centered within it, matching
+// the fixed-size `h-[1.28in] w-[2.1in]` box in the on-screen print page.
+const LOGO_BOX_WIDTH_IN = 2.1;
+const LOGO_BOX_HEIGHT_IN = 1.28;
 const QR_SIZE_IN = 1.25;
 const GAP_LOGO_QR_IN = 0.05;
 const GAP_QR_CODE_IN = 0.06;
@@ -52,10 +58,10 @@ async function renderTextLine(
   return { buffer, heightPx };
 }
 
-async function loadLogo(): Promise<Buffer> {
-  return readFile(
-    path.join(process.cwd(), "public", "brand", "watermans-logo-full.png")
-  );
+// `logoUrl` is a Location's logoUrl, e.g. "/brand/chix-logo-full.png" — a
+// root-relative path into /public, same shape for every location.
+async function loadLogo(logoUrl: string): Promise<Buffer> {
+  return readFile(path.join(process.cwd(), "public", logoUrl.replace(/^\//, "")));
 }
 
 export async function renderStickerPng(opts: {
@@ -69,14 +75,17 @@ export async function renderStickerPng(opts: {
   const canvasW = inToPx(STICKER_WIDTH_IN);
   const canvasH = inToPx(STICKER_HEIGHT_IN);
 
-  // Logo, resized to target width, aspect preserved.
+  // Logo, fit inside the box (aspect preserved, shrink-only — "fit: inside"
+  // is sharp's equivalent of CSS object-fit: contain).
+  const logoBoxW = inToPx(LOGO_BOX_WIDTH_IN);
+  const logoBoxH = inToPx(LOGO_BOX_HEIGHT_IN);
   const logo = await sharp(logoBuffer)
-    .resize({ width: inToPx(LOGO_WIDTH_IN) })
+    .resize({ width: logoBoxW, height: logoBoxH, fit: "inside" })
     .png()
     .toBuffer();
   const logoMeta = await sharp(logo).metadata();
-  const logoH = logoMeta.height ?? inToPx(LOGO_WIDTH_IN / 1.6);
-  const logoW = logoMeta.width ?? inToPx(LOGO_WIDTH_IN);
+  const logoH = logoMeta.height ?? logoBoxH;
+  const logoW = logoMeta.width ?? logoBoxW;
 
   // QR, rasterized crisp (nearest-neighbor) so module edges stay pure
   // black/white rather than anti-aliased gray — better for vinyl print.
@@ -114,7 +123,7 @@ export async function renderStickerPng(opts: {
   });
 
   const contentHeight =
-    logoH +
+    logoBoxH +
     inToPx(GAP_LOGO_QR_IN) +
     qrPx +
     inToPx(GAP_QR_CODE_IN) +
@@ -131,8 +140,12 @@ export async function renderStickerPng(opts: {
   const composites: OverlayOptions[] = [];
   const centerX = (width: number) => Math.round((canvasW - width) / 2);
 
-  composites.push({ input: logo, left: centerX(logoW), top: y });
-  y += logoH + inToPx(GAP_LOGO_QR_IN);
+  composites.push({
+    input: logo,
+    left: centerX(logoW),
+    top: y + Math.round((logoBoxH - logoH) / 2),
+  });
+  y += logoBoxH + inToPx(GAP_LOGO_QR_IN);
 
   composites.push({ input: qr, left: centerX(qrPx), top: y });
   y += qrPx + inToPx(GAP_QR_CODE_IN);
@@ -161,9 +174,10 @@ export async function renderStickerPng(opts: {
 export async function renderBatchStickerPngs(
   tags: { code: string }[],
   baseUrl: string,
-  restaurantName: string
+  restaurantName: string,
+  logoUrl: string
 ): Promise<{ code: string; png: Buffer }[]> {
-  const logoBuffer = await loadLogo();
+  const logoBuffer = await loadLogo(logoUrl);
   return Promise.all(
     tags.map(async (tag) => ({
       code: tag.code,

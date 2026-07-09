@@ -39,15 +39,19 @@ export default async function TagsPage({
   const { filter } = await searchParams;
   const unassignedOnly = filter === "unassigned";
 
-  const [tags, batches] = await Promise.all([
+  const [tags, batches, locations] = await Promise.all([
     prisma.tag.findMany({
       include: {
         equipment: { select: { id: true, name: true } },
-        batch: { select: { batchNumber: true } },
+        batch: { select: { batchNumber: true, restaurant: { select: { name: true } } } },
       },
       orderBy: [{ batch: { batchNumber: "desc" } }, { code: "asc" }],
     }),
-    prisma.tagBatch.findMany({ orderBy: { batchNumber: "desc" } }),
+    prisma.tagBatch.findMany({
+      orderBy: { batchNumber: "desc" },
+      include: { restaurant: { select: { name: true } } },
+    }),
+    prisma.location.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   const blanks = tags.filter((t) => t.role === "UNASSIGNED" && !t.voided);
@@ -65,10 +69,59 @@ export default async function TagsPage({
         circulation.
       </p>
 
+      <div className="mt-4 rounded-sm border border-border bg-surface p-3">
+        <p className="font-display text-xs uppercase tracking-widest text-accent">
+          Sending these to an outside printer
+        </p>
+        <ul className="mt-2 flex flex-col gap-1.5 text-sm text-text-muted">
+          <li>
+            Open a batch's print sheet below, then tap{" "}
+            <span className="text-text">Download Images</span> — that gives you a ZIP
+            with one 300&nbsp;DPI PNG per sticker. Each has a different QR code, so
+            they can't be merged into a single file.
+          </li>
+          <li>
+            Tell the vendor the exact size:{" "}
+            <span className="font-mono text-text">2.5in × 3.4in</span> per sticker.
+            Don't let them auto-scale it to a "standard" label size.
+          </li>
+          <li>
+            Ask for a durable label material — vinyl or laminated. These go directly
+            on kitchen equipment and need to survive heat, grease, and washdown.
+          </li>
+          <li>
+            Upload every PNG in the ZIP as-is — don't resize, recompress, or convert
+            them. They're already print-ready at full resolution.
+          </li>
+        </ul>
+      </div>
+
       <form
         action={generateTagBatch}
-        className="mt-4 flex items-end gap-2 rounded-sm border border-border p-3"
+        className="mt-4 flex flex-wrap items-end gap-2 rounded-sm border border-border p-3"
       >
+        {locations.length > 1 && (
+          <div className="flex-1 basis-full sm:basis-auto">
+            <label
+              htmlFor="restaurantId"
+              className="font-display text-xs uppercase tracking-widest text-text-muted"
+            >
+              Location
+            </label>
+            <select
+              id="restaurantId"
+              name="restaurantId"
+              defaultValue={locations[0]?.id}
+              className="mt-1 h-12 w-full rounded-sm border border-border bg-surface px-3"
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex-1">
           <label
             htmlFor="count"
@@ -103,6 +156,7 @@ export default async function TagsPage({
               className="flex h-12 items-center rounded-sm border border-border px-3 font-display text-sm uppercase tracking-wide text-text-muted"
             >
               Print batch #{b.batchNumber}
+              {locations.length > 1 && ` — ${b.restaurant.name}`}
             </Link>
           ))}
         </div>
@@ -134,6 +188,11 @@ export default async function TagsPage({
             <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
               <span className="font-mono text-sm whitespace-nowrap">{t.code}</span>
               <RoleBadge role={t.role} voided={t.voided} />
+              {locations.length > 1 && (
+                <span className="font-display text-xs uppercase tracking-widest text-text-muted">
+                  {t.batch.restaurant.name}
+                </span>
+              )}
               <span className="min-w-0 flex-1 truncate text-sm text-text-muted">
                 {t.role === "EQUIPMENT" && t.equipment ? (
                   <Link

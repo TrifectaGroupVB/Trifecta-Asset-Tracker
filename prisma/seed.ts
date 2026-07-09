@@ -47,9 +47,39 @@ async function main() {
   await prisma.equipment.deleteMany();
   await prisma.tech.deleteMany();
   await prisma.setting.deleteMany();
+  await prisma.location.deleteMany();
+
+  // This seed only builds out demo data for the pilot location — Chix and
+  // The Shack start empty and get their real equipment added via the tag
+  // wizard / admin, same as Waterman's did.
+  const watermans = await prisma.location.create({
+    data: {
+      slug: "watermans",
+      name: "Waterman's Surfside Grille",
+      address: "415 Atlantic Ave, Virginia Beach, VA 23451",
+      logoUrl: "/brand/watermans-logo-full.png",
+    },
+  });
+  await prisma.location.create({
+    data: {
+      slug: "chix",
+      name: "Chix on the Beach",
+      address: "701 Atlantic Ave, Virginia Beach, VA 23451",
+      logoUrl: "/brand/chix-logo-full.png",
+    },
+  });
+  await prisma.location.create({
+    data: {
+      slug: "shack",
+      name: "The Shack on 8th",
+      address: "715 Atlantic Ave, Virginia Beach, VA 23451",
+      logoUrl: "/brand/shack-logo-full.png",
+    },
+  });
 
   const walkIn = await prisma.equipment.create({
     data: {
+      restaurantId: watermans.id,
       name: "Walk-In Cooler",
       manufacturer: "Kolpak",
       model: "KF7-0810-CR",
@@ -90,6 +120,7 @@ async function main() {
 
   const fryer = await prisma.equipment.create({
     data: {
+      restaurantId: watermans.id,
       name: "Gas Fryer",
       manufacturer: "Frymaster",
       model: "MJ45",
@@ -127,6 +158,7 @@ async function main() {
 
   const oven = await prisma.equipment.create({
     data: {
+      restaurantId: watermans.id,
       name: "Convection Oven",
       manufacturer: "Blodgett",
       model: "DFG-100",
@@ -230,7 +262,7 @@ async function main() {
   // One printed batch of 10 tags: 3 on equipment, 1 as a service-request
   // station, 6 still unassigned.
   const batch = await prisma.tagBatch.create({
-    data: { batchNumber: 1, count: 10 },
+    data: { batchNumber: 1, count: 10, restaurantId: watermans.id },
   });
 
   const taken = new Set<string>();
@@ -268,8 +300,6 @@ async function main() {
     data: [
       { key: "adminEmail", value: "parker0125@gmail.com" },
       { key: "dashboardPin", value: "417293" },
-      { key: "restaurantName", value: "Waterman's Surfside Grille" },
-      { key: "restaurantAddress", value: "415 Atlantic Ave, Virginia Beach, VA 23451" },
     ],
   });
 
