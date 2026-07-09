@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { deleteCredential } from "@/app/dashboard/webauthn-actions";
+import { BiometricEnrollButton } from "@/components/dashboard/BiometricEnrollButton";
 import { PinGate } from "@/components/dashboard/PinGate";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/db";
 import { hasDashboardSession } from "@/lib/session";
 import { saveTechRow, updateAdminEmail, changePin } from "./actions";
@@ -20,10 +23,11 @@ export default async function AdminPage({
   const { error, ok } = await searchParams;
   const message = MESSAGES[error ?? ok ?? ""];
 
-  const [equipment, techs, adminEmail] = await Promise.all([
+  const [equipment, techs, adminEmail, credentials] = await Promise.all([
     prisma.equipment.findMany({ orderBy: { name: "asc" } }),
     prisma.tech.findMany({ orderBy: { name: "asc" } }),
     prisma.setting.findUnique({ where: { key: "adminEmail" } }),
+    prisma.webAuthnCredential.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   const inputClass =
@@ -140,6 +144,43 @@ export default async function AdminPage({
             Add tech
           </button>
         </form>
+      </section>
+
+      {/* Biometric unlock */}
+      <section className="mt-8">
+        <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+          Biometric unlock
+        </h2>
+        <p className="mt-1 text-sm text-text-muted">
+          Enrolled devices can skip the PIN pad with Face ID / Touch ID / fingerprint.
+          The PIN still works everywhere as a fallback.
+        </p>
+        {credentials.length > 0 && (
+          <ul className="mt-2 divide-y divide-border border-y border-border">
+            {credentials.map((c) => (
+              <li key={c.id} className="flex items-center gap-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">{c.deviceLabel}</p>
+                  <p className="text-xs text-text-muted">
+                    Enrolled {formatDate(c.createdAt)}
+                  </p>
+                </div>
+                <form action={deleteCredential}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <button
+                    type="submit"
+                    className="h-12 rounded-sm border border-danger/50 px-4 font-display text-sm uppercase tracking-wide text-danger"
+                  >
+                    Remove
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-3">
+          <BiometricEnrollButton />
+        </div>
       </section>
 
       {/* Settings */}

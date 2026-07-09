@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export const SESSION_COOKIE = "tat_session";
-const SESSION_HOURS = 12;
+// Kept short on purpose — this can sit on a shared kitchen device, so it
+// re-locks itself well within a shift rather than staying open for hours.
+const SESSION_HOURS = 1;
 
 // The HMAC key is derived from the PIN itself: changing the PIN
 // invalidates every existing session with no extra bookkeeping.

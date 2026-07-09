@@ -186,3 +186,15 @@ model Setting {
   key   String @id // adminEmail, dashboardPin, restaurantName, restaurantAddress
   value String
 }
+
+// A device enrolled for biometric unlock (Face ID / Touch ID / fingerprint)
+// as a shortcut past the PIN pad. There's no per-user account model here —
+// this is "trusted devices for the shared dashboard PIN," not per-person auth.
+model WebAuthnCredential {
+  id           String   @id @default(cuid())
+  credentialId String   @unique // base64url, from the authenticator
+  publicKey    Bytes
+  counter      Int      @default(0) // replay protection, bumped on each use
+  deviceLabel  String // e.g. "Parker's iPhone"
+  createdAt    DateTime @default(now())
+}
