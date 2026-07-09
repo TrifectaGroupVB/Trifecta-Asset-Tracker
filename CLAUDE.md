@@ -79,7 +79,7 @@ All colors are Tailwind theme tokens (defined in `src/app/globals.css` via `@the
 - **Equipment**: name, manufacturer, model, serial, location, installDate, photoUrl, warrantyExpires, notes
 - **SpecField**: flexible label/value pairs per equipment (voltage, refrigerant, filter size, whatever)
 - **ManualFile**: title + fileUrl per equipment
-- **Part**: name, partNumber, price (nullable), photoUrl (nullable), per equipment
+- **Part**: name, partNumber, price (nullable), photoUrl (nullable), vendorUrl (nullable — preferred vendor's product/order page), per equipment
 - **Tech**: name, email, phone
 - **ServiceRequest**: requestNumber (int, unique, sequential — **displayed as `SR-0001`**, format with `formatRequestNumber()` in `src/lib/format.ts`), equipment, requesterName, description, photoUrl, urgency (`LOW|NORMAL|URGENT`), status (`OPEN|ASSIGNED|IN_PROGRESS|COMPLETED`), tech (nullable), internalNotes, createdAt, completedAt
 - **ServiceRecord**: work history per equipment; optionally linked to the ServiceRequest that spawned it
@@ -116,3 +116,5 @@ SQLite has no native enums — enum-like fields are strings validated in app cod
 **Tech delete now reopens orphaned requests:** the Tech→ServiceRequest FK is `onDelete: SetNull`, which only clears `techId` — it doesn't touch `status`, so deleting an assigned tech used to leave requests stuck showing ASSIGNED with no tech (found live: Parker deleted the seed techs and added himself, orphaning SR-0001). `saveTechRow`'s delete branch (`src/app/dashboard/admin/actions.ts`) now reverts any ASSIGNED/IN_PROGRESS requests for that tech back to OPEN and logs it in the timeline, in the same transaction as the delete.
 
 Real equipment data (from `Trifecta/data tags/` nameplate photos) replaces the demo seed whenever Parker's ready for that.
+
+**Admin: manuals-from-URL, part vendor links, and a real UI bug found by both.** `addManual` and `savePartRow` (`src/app/dashboard/admin/actions.ts`) both accept a plain-text URL via `normalizeUrl()` (prepends `https://` if the scheme was left off, then validates with the `URL` constructor) — manuals can be linked instead of uploaded, and each part can carry a `vendorUrl` shown as a "View at vendor ↗" link. **Important:** the URL fields in the admin editor (`src/app/dashboard/admin/equipment/[id]/page.tsx`) must stay `type="text"`, not `type="url"` — native `type="url"` validation silently blocks form submission (no error, just a browser tooltip) on any value without a scheme, which defeats `normalizeUrl()`'s whole purpose before the request ever reaches the server. All part-row and add-a-part fields (Part Name, Part #, Price, Vendor Link, Photo) now have persistent visible labels, not just placeholders — placeholders disappear once a value is filled in, which was confusing on existing rows.

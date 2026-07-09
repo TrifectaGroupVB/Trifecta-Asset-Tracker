@@ -19,6 +19,11 @@ const inputClass =
   "h-12 w-full rounded-sm border border-border bg-surface px-3 placeholder:text-text-muted";
 const labelClass =
   "mt-3 block font-display text-xs uppercase tracking-widest text-text-muted";
+// Small persistent label above a field within a flex row (spec rows, part
+// rows) — unlike labelClass, this doesn't assume it's the first field or
+// full-width, so it stays put even once the field already has a value.
+const fieldLabelClass =
+  "block font-display text-[10px] uppercase tracking-widest text-text-muted";
 
 function dateValue(d: Date | null): string {
   return d ? d.toISOString().slice(0, 10) : "";
@@ -195,13 +200,24 @@ export default async function EquipmentEditorPage({
             </ul>
             <form action={addManual} className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
               <input type="hidden" name="equipmentId" value={eq!.id} />
-              <input name="title" placeholder="Manual title" aria-label="Manual title" required className={inputClass} />
+              <label htmlFor="manual-title" className={fieldLabelClass}>Manual title</label>
+              <input id="manual-title" name="title" placeholder="e.g. Installation & Service Manual" required className={inputClass} />
+              <label htmlFor="manual-url" className={fieldLabelClass}>Link to PDF</label>
               <input
+                id="manual-url"
+                name="url"
+                type="text"
+                placeholder="https://manufacturer.com/manual.pdf"
+                className={inputClass}
+              />
+              <p className="text-center text-xs text-text-muted">— or —</p>
+              <label htmlFor="manual-file" className={fieldLabelClass}>Upload a PDF</label>
+              <input
+                id="manual-file"
                 type="file"
                 name="file"
                 accept="application/pdf"
-                required
-                aria-label="Manual PDF"
+                aria-label="Manual PDF file"
                 className="text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-4 file:font-display file:uppercase file:tracking-wide file:text-text"
               />
               <button type="submit" className="h-12 rounded-sm border border-accent font-display uppercase tracking-wide text-accent">
@@ -221,32 +237,61 @@ export default async function EquipmentEditorPage({
                   <form action={savePartRow} className="flex flex-col gap-2">
                     <input type="hidden" name="equipmentId" value={eq!.id} />
                     <input type="hidden" name="partId" value={p.id} />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-end gap-2">
                       {p.photoUrl && (
                         <Image
                           src={p.photoUrl}
                           alt={p.name}
                           width={40}
                           height={40}
-                          className="size-10 rounded-sm border border-border object-cover"
+                          className="size-10 shrink-0 rounded-sm border border-border object-cover"
                         />
                       )}
-                      <input name="name" defaultValue={p.name} aria-label="Part name" required className={`${inputClass} flex-1`} />
+                      <div className="flex-1">
+                        <label htmlFor={`part-name-${p.id}`} className={fieldLabelClass}>Part name</label>
+                        <input id={`part-name-${p.id}`} name="name" defaultValue={p.name} required className={inputClass} />
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      <input name="partNumber" defaultValue={p.partNumber} aria-label="Part number" required className={`${inputClass} flex-1 font-mono`} />
-                      <input
-                        name="price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        defaultValue={p.price ?? ""}
-                        placeholder={formatPrice(null)}
-                        aria-label="Price"
-                        className={`${inputClass} w-28 font-mono`}
-                      />
+                      <div className="flex-1">
+                        <label htmlFor={`part-number-${p.id}`} className={fieldLabelClass}>Part #</label>
+                        <input id={`part-number-${p.id}`} name="partNumber" defaultValue={p.partNumber} required className={`${inputClass} font-mono`} />
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <label htmlFor={`part-price-${p.id}`} className={fieldLabelClass}>Price</label>
+                        <input
+                          id={`part-price-${p.id}`}
+                          name="price"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={p.price ?? ""}
+                          placeholder={formatPrice(null)}
+                          className={`${inputClass} font-mono`}
+                        />
+                      </div>
                     </div>
-                    <input type="file" name="photo" accept="image/*" aria-label={`Photo for ${p.name}`} className="min-h-12 text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-3 file:text-text" />
+                    <label htmlFor={`part-vendor-${p.id}`} className={fieldLabelClass}>Vendor link</label>
+                    <input
+                      id={`part-vendor-${p.id}`}
+                      name="vendorUrl"
+                      type="text"
+                      defaultValue={p.vendorUrl ?? ""}
+                      placeholder="https://vendor.com/product-page"
+                      className={inputClass}
+                    />
+                    {p.vendorUrl && (
+                      <a
+                        href={p.vendorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex min-h-8 items-center text-xs text-accent underline underline-offset-4"
+                      >
+                        View at vendor ↗
+                      </a>
+                    )}
+                    <label htmlFor={`part-photo-${p.id}`} className={fieldLabelClass}>Photo</label>
+                    <input id={`part-photo-${p.id}`} type="file" name="photo" accept="image/*" aria-label={`Photo for ${p.name}`} className="min-h-12 text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-3 file:text-text" />
                     <div className="flex gap-2">
                       <button type="submit" name="intent" value="save" className="h-12 flex-1 rounded-sm border border-border font-display uppercase tracking-wide">
                         Save
@@ -264,12 +309,28 @@ export default async function EquipmentEditorPage({
               <p className="font-display text-xs uppercase tracking-widest text-text-muted">
                 Add a part
               </p>
-              <input name="name" placeholder="Part name" aria-label="New part name" required className={inputClass} />
+              <label htmlFor="new-part-name" className={fieldLabelClass}>Part name</label>
+              <input id="new-part-name" name="name" placeholder="e.g. Door Gasket" required className={inputClass} />
               <div className="flex gap-2">
-                <input name="partNumber" placeholder="Part #" aria-label="New part number" required className={`${inputClass} flex-1 font-mono`} />
-                <input name="price" type="number" step="0.01" min="0" placeholder="Price" aria-label="New part price" className={`${inputClass} w-28 font-mono`} />
+                <div className="flex-1">
+                  <label htmlFor="new-part-number" className={fieldLabelClass}>Part #</label>
+                  <input id="new-part-number" name="partNumber" placeholder="From the manual" required className={`${inputClass} font-mono`} />
+                </div>
+                <div className="w-28 shrink-0">
+                  <label htmlFor="new-part-price" className={fieldLabelClass}>Price</label>
+                  <input id="new-part-price" name="price" type="number" step="0.01" min="0" placeholder="Optional" className={`${inputClass} font-mono`} />
+                </div>
               </div>
-              <input type="file" name="photo" accept="image/*" aria-label="New part photo" className="min-h-12 text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-3 file:text-text" />
+              <label htmlFor="new-part-vendor" className={fieldLabelClass}>Vendor link</label>
+              <input
+                id="new-part-vendor"
+                name="vendorUrl"
+                type="text"
+                placeholder="https://vendor.com/product-page"
+                className={inputClass}
+              />
+              <label htmlFor="new-part-photo" className={fieldLabelClass}>Photo</label>
+              <input id="new-part-photo" type="file" name="photo" accept="image/*" aria-label="New part photo" className="min-h-12 text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-3 file:text-text" />
               <button type="submit" className="h-12 rounded-sm border border-accent font-display uppercase tracking-wide text-accent">
                 Add part
               </button>

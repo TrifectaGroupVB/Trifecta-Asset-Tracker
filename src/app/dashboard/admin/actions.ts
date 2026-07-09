@@ -18,6 +18,19 @@ function dateOrNull(value: string): Date | null {
   return value ? new Date(value) : null;
 }
 
+// Accepts a plain URL and prepends https:// if the scheme was left off
+// (e.g. someone pastes "acmeparts.com/widget" instead of the full URL).
+// Returns null for empty input or something that still isn't a valid URL.
+function normalizeUrl(value: string): string | null {
+  if (!value) return null;
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    return new URL(withScheme).toString();
+  } catch {
+    return null;
+  }
+}
+
 function refreshEquipment(id: string) {
   revalidatePath("/dashboard/admin");
   revalidatePath(`/dashboard/admin/equipment/${id}`);
@@ -106,12 +119,23 @@ export async function addManual(formData: FormData) {
   await assertSession();
   const equipmentId = str(formData, "equipmentId");
   const title = str(formData, "title");
+  const url = normalizeUrl(str(formData, "url"));
   const file = formData.get("file");
-  if (!equipmentId || !title || !(file instanceof File)) return;
-  const saved = await saveUpload(file, "manuals", "pdf");
-  if (!saved.ok) return;
+  if (!equipmentId || !title) return;
+
+  let fileUrl: string;
+  if (url) {
+    fileUrl = url;
+  } else if (file instanceof File && file.size > 0) {
+    const saved = await saveUpload(file, "manuals", "pdf");
+    if (!saved.ok) return;
+    fileUrl = saved.url;
+  } else {
+    return; // neither a link nor a file was given
+  }
+
   await prisma.manualFile.create({
-    data: { equipmentId, title, fileUrl: saved.url },
+    data: { equipmentId, title, fileUrl },
   });
   refreshEquipment(equipmentId);
 }
@@ -143,6 +167,7 @@ export async function savePartRow(formData: FormData) {
   const partNumber = str(formData, "partNumber");
   const priceRaw = str(formData, "price");
   const price = priceRaw ? Number.parseFloat(priceRaw) : null;
+  const vendorUrl = normalizeUrl(str(formData, "vendorUrl"));
   if (!name || !partNumber || (price != null && !Number.isFinite(price))) return;
 
   let photoUrl: string | undefined;
@@ -155,11 +180,11 @@ export async function savePartRow(formData: FormData) {
   if (partId) {
     await prisma.part.update({
       where: { id: partId },
-      data: { name, partNumber, price, ...(photoUrl ? { photoUrl } : {}) },
+      data: { name, partNumber, price, vendorUrl, ...(photoUrl ? { photoUrl } : {}) },
     });
   } else {
     await prisma.part.create({
-      data: { equipmentId, name, partNumber, price, photoUrl: photoUrl ?? null },
+      data: { equipmentId, name, partNumber, price, vendorUrl, photoUrl: photoUrl ?? null },
     });
   }
   refreshEquipment(equipmentId);

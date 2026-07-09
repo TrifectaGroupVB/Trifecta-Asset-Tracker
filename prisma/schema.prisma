@@ -61,6 +61,7 @@ model Part {
   partNumber  String
   price       Float?
   photoUrl    String?
+  vendorUrl   String? // link to the preferred vendor's product/order page
 
   equipment  Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   orderLines PartOrderLine[]
