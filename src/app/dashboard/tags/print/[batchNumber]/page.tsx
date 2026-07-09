@@ -59,11 +59,17 @@ export default async function PrintBatchPage({
         {stickers.map((s) => (
           <div
             key={s.code}
-            className="flex h-[2in] w-[2in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
+            className="flex h-[2.5in] w-[2in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/watermans-mark.png"
+              alt=""
+              className="h-[0.4in] w-auto object-contain"
+            />
             <div
               aria-hidden
-              className="size-[1.25in] [&_svg]:size-full"
+              className="mt-[0.05in] size-[1.25in] [&_svg]:size-full"
               dangerouslySetInnerHTML={{ __html: s.svg }}
             />
             <p className="mt-[0.06in] font-mono text-[11pt] leading-none tracking-[0.08em] text-black">
