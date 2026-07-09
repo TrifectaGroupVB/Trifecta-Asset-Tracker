@@ -1,11 +1,13 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { DataPlate } from "@/components/DataPlate";
 import { EquipmentTabs } from "@/components/equipment/EquipmentTabs";
 import { prisma } from "@/lib/db";
 import { formatDate, formatFileSize } from "@/lib/format";
+import { hasDashboardSession } from "@/lib/session";
 
 async function fileSizeFor(fileUrl: string): Promise<number | null> {
   try {
@@ -40,6 +42,11 @@ export default async function EquipmentDetailPage({
   });
   if (!eq) notFound();
 
+  // Only staff who already have a dashboard session (PIN or biometrics —
+  // both issue the same session cookie) get the edit shortcut. No session
+  // means no badge at all, not a link that bounces to a PIN prompt.
+  const canEdit = await hasDashboardSession();
+
   const manuals = await Promise.all(
     eq.manuals.map(async (m) => ({
       id: m.id,
@@ -64,6 +71,16 @@ export default async function EquipmentDetailPage({
           title={eq.name}
           subtitle={eq.manufacturer}
           photoUrl={eq.photoUrl}
+          badge={
+            canEdit ? (
+              <Link
+                href={`/dashboard/admin/equipment/${eq.id}`}
+                className="inline-flex min-h-12 items-center px-2 font-display text-sm uppercase tracking-wide text-accent"
+              >
+                Edit
+              </Link>
+            ) : undefined
+          }
           fields={[
             { label: "Model", value: eq.model },
             { label: "Serial", value: eq.serial },

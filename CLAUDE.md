@@ -28,7 +28,7 @@ Mobile-first web app for managing commercial kitchen equipment and service reque
 
 - `/` — home: logo + links to Equipment / Report a problem / Dashboard (static, no DB)
 - `/equipment` — public index, `?q=` searches name/model
-- `/equipment/[id]` — public detail (QR scan target): DataPlate header, sticky OVERVIEW/MANUALS/PARTS/HISTORY tabs, part-order flow (`EquipmentTabs` client component + `submitPartOrder` server action → emails admin)
+- `/equipment/[id]` — public detail (QR scan target): DataPlate header, sticky OVERVIEW/MANUALS/PARTS/HISTORY tabs, part-order flow (`EquipmentTabs` client component + `submitPartOrder` server action → emails admin). Shows an "Edit" badge on the DataPlate linking straight to `/dashboard/admin/equipment/[id]` when `hasDashboardSession()` is true (PIN or biometrics — same session cookie either way); absent entirely when unauthenticated, not a link that bounces to a PIN prompt.
 - `/request` — public service-request form (one screen). `?equipment={id}` pre-selects. Photo uploads land in `/public/uploads/requests/`. No email on create (per spec — emails are for assignment + part orders)
 - `/dashboard` — PIN-gated queue (stats strip, status chips, search, urgent-first sort; URGENT+OPEN+>4h badges pulse). Any dashboard page renders the PIN pad in place when there's no session
 - `/dashboard/requests/[id]` — request detail: assign (emails tech, `[URGENT]` subject tag), Assigned → In Progress → Completed (completion writes a ServiceRecord), timeline + append-only notes (`RequestEvent`)
