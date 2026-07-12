@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "scansticker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/parkerphillips/ParkersBrain/ScanSticker/app", "--", "--port", "3100"],
+      "port": 3100
     }
   ]
 }

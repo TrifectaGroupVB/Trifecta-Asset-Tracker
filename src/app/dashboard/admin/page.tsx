@@ -16,15 +16,28 @@ const MESSAGES: Record<string, { text: string; kind: "ok" | "error" }> = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; ok?: string }>;
+  searchParams: Promise<{ error?: string; ok?: string; q?: string; location?: string }>;
 }) {
   if (!(await hasDashboardSession())) return <PinGate />;
 
-  const { error, ok } = await searchParams;
+  const { error, ok, q, location: locationSlug } = await searchParams;
   const message = MESSAGES[error ?? ok ?? ""];
+  const query = q?.trim() ?? "";
 
   const [equipment, techs, adminEmail, credentials, locations] = await Promise.all([
     prisma.equipment.findMany({
+      where: {
+        ...(locationSlug ? { restaurant: { slug: locationSlug } } : {}),
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { manufacturer: { contains: query, mode: "insensitive" } },
+                { model: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { name: "asc" },
       include: { restaurant: { select: { name: true } } },
     }),
@@ -33,6 +46,7 @@ export default async function AdminPage({
     prisma.webAuthnCredential.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.location.findMany({ orderBy: { name: "asc" } }),
   ]);
+  const isFiltered = query !== "" || !!locationSlug;
 
   const inputClass =
     "h-12 w-full rounded-sm border border-border bg-surface px-3 placeholder:text-text-muted";
@@ -68,7 +82,61 @@ export default async function AdminPage({
             + Add equipment
           </Link>
         </div>
-        <ul className="divide-y divide-border border-y border-border">
+
+        <form action="/dashboard/admin" className="mt-3 flex flex-wrap gap-2">
+          <label htmlFor="q" className="sr-only">
+            Search name, manufacturer, or model
+          </label>
+          <input
+            id="q"
+            type="search"
+            name="q"
+            defaultValue={query}
+            placeholder="Search name, manufacturer, or model…"
+            className="h-12 min-w-0 flex-1 rounded-sm border border-border bg-surface px-3 text-text placeholder:text-text-muted"
+          />
+          {locations.length > 1 && (
+            <>
+              <label htmlFor="location" className="sr-only">
+                Filter by location
+              </label>
+              <select
+                id="location"
+                name="location"
+                defaultValue={locationSlug ?? ""}
+                className="h-12 shrink-0 rounded-sm border border-border bg-surface px-3 text-text"
+              >
+                <option value="">All locations</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.slug}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          <button
+            type="submit"
+            className="h-12 shrink-0 rounded-sm border border-border bg-surface px-4 font-display uppercase tracking-wide text-text"
+          >
+            Filter
+          </button>
+          {isFiltered && (
+            <Link
+              href="/dashboard/admin"
+              className="flex h-12 shrink-0 items-center px-2 font-display uppercase tracking-wide text-text-muted underline underline-offset-4"
+            >
+              Clear
+            </Link>
+          )}
+        </form>
+
+        {equipment.length === 0 && (
+          <p className="mt-4 text-text-muted">
+            No equipment matches these filters.
+          </p>
+        )}
+        <ul className="mt-4 divide-y divide-border border-y border-border">
           {equipment.map((eq) => (
             <li key={eq.id}>
               <Link
