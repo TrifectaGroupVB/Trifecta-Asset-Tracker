@@ -262,6 +262,34 @@ export async function updateLocation(formData: FormData) {
   revalidatePath("/");
 }
 
+// Upload a custom logo for this location's printed QR tags. Saved to
+// `printLogoUrl`, which both the on-screen print sheet and the PNG export use
+// (they resolve `printLogoUrl ?? logoUrl`). The logo is desaturated to
+// grayscale at print time, so any color logo prints in black & white.
+export async function uploadLocationPrintLogo(formData: FormData) {
+  await assertSession();
+  const id = str(formData, "id");
+  const file = formData.get("logo");
+  if (!id || !(file instanceof File)) return;
+  const saved = await saveUpload(file, "brand", "image");
+  if (!saved.ok) {
+    redirect("/dashboard/admin?error=logo-upload");
+  }
+  await prisma.location.update({ where: { id }, data: { printLogoUrl: saved.url } });
+  revalidatePath("/dashboard/admin");
+  redirect("/dashboard/admin?ok=logo-saved");
+}
+
+// Clear a location's custom print logo, falling back to its default logo.
+export async function resetLocationPrintLogo(formData: FormData) {
+  await assertSession();
+  const id = str(formData, "id");
+  if (!id) return;
+  await prisma.location.update({ where: { id }, data: { printLogoUrl: null } });
+  revalidatePath("/dashboard/admin");
+  redirect("/dashboard/admin?ok=logo-reset");
+}
+
 export async function updateAdminEmail(formData: FormData) {
   await assertSession();
   const email = str(formData, "adminEmail");

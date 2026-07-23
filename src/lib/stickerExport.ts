@@ -58,9 +58,18 @@ async function renderTextLine(
   return { buffer, heightPx };
 }
 
-// `logoUrl` is a Location's logoUrl, e.g. "/brand/chix-logo-full.png" — a
-// root-relative path into /public, same shape for every location.
+// `logoUrl` is a Location's print logo. It comes in two shapes:
+//   - a root-relative path into /public (e.g. "/brand/chix-logo-print.png")
+//     for the built-in logos that ship with the app, and
+//   - an absolute http(s) URL (e.g. a Vercel Blob link) for a logo an admin
+//     uploaded through Admin → Locations.
+// Read from disk for the former, fetch over the network for the latter.
 async function loadLogo(logoUrl: string): Promise<Buffer> {
+  if (/^https?:\/\//i.test(logoUrl)) {
+    const res = await fetch(logoUrl);
+    if (!res.ok) throw new Error(`Could not load print logo (${res.status}): ${logoUrl}`);
+    return Buffer.from(await res.arrayBuffer());
+  }
   return readFile(path.join(process.cwd(), "public", logoUrl.replace(/^\//, "")));
 }
 
@@ -76,11 +85,16 @@ export async function renderStickerPng(opts: {
   const canvasH = inToPx(STICKER_HEIGHT_IN);
 
   // Logo, fit inside the box (aspect preserved, shrink-only — "fit: inside"
-  // is sharp's equivalent of CSS object-fit: contain).
+  // is sharp's equivalent of CSS object-fit: contain). Desaturated to grayscale
+  // so tags print in clean black & white regardless of the source logo's
+  // color — matches the `grayscale` filter on the on-screen print preview.
+  // `.grayscale()` preserves the alpha channel, so transparent logos stay
+  // transparent over the white sticker.
   const logoBoxW = inToPx(LOGO_BOX_WIDTH_IN);
   const logoBoxH = inToPx(LOGO_BOX_HEIGHT_IN);
   const logo = await sharp(logoBuffer)
     .resize({ width: logoBoxW, height: logoBoxH, fit: "inside" })
+    .grayscale()
     .png()
     .toBuffer();
   const logoMeta = await sharp(logo).metadata();

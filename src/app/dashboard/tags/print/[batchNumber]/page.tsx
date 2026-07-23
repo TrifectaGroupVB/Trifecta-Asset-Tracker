@@ -75,8 +75,10 @@ export default async function PrintBatchPage({
                 shrink to fit instead of overflowing the sticker — object-contain
                 needs both dimensions bounded, or a 1:1 logo renders 2.1in tall. */}
             <div className="flex h-[1.28in] w-[2.1in] items-center justify-center">
+              {/* Grayscale so the preview matches the black & white print
+                  output (the PNG export desaturates the logo the same way). */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+              <img src={logoUrl} alt="" className="h-full w-full object-contain grayscale" />
             </div>
             <div
               aria-hidden

@@ -5,12 +5,22 @@ import { PinGate } from "@/components/dashboard/PinGate";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/db";
 import { hasDashboardSession } from "@/lib/session";
-import { saveTechRow, updateAdminEmail, updateLocation, changePin } from "./actions";
+import {
+  saveTechRow,
+  updateAdminEmail,
+  updateLocation,
+  uploadLocationPrintLogo,
+  resetLocationPrintLogo,
+  changePin,
+} from "./actions";
 
 const MESSAGES: Record<string, { text: string; kind: "ok" | "error" }> = {
   "wrong-pin": { text: "Current PIN is wrong.", kind: "error" },
   "bad-pin": { text: "New PIN must be exactly 6 digits.", kind: "error" },
   "pin-changed": { text: "PIN updated.", kind: "ok" },
+  "logo-saved": { text: "Tag logo updated.", kind: "ok" },
+  "logo-reset": { text: "Tag logo reset to default.", kind: "ok" },
+  "logo-upload": { text: "That logo didn't upload — use a PNG or JPG image.", kind: "error" },
 };
 
 export default async function AdminPage({
@@ -270,15 +280,11 @@ export default async function AdminPage({
           </h2>
           <ul className="mt-2 flex flex-col gap-3">
             {locations.map((l) => (
-              <li key={l.id}>
-                <form
-                  action={updateLocation}
-                  className="flex flex-col gap-2 rounded-sm border border-border p-3"
-                >
+              <li key={l.id} className="rounded-sm border border-border p-3">
+                <form action={updateLocation} className="flex flex-col gap-2">
                   <input type="hidden" name="id" value={l.id} />
                   <input name="name" defaultValue={l.name} aria-label="Name" required className={inputClass} />
                   <input name="address" defaultValue={l.address} aria-label="Address" required className={inputClass} />
-                  <p className="font-mono text-xs text-text-muted">{l.logoUrl}</p>
                   <button
                     type="submit"
                     className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
@@ -286,6 +292,56 @@ export default async function AdminPage({
                     Save
                   </button>
                 </form>
+
+                {/* Tag print logo — uploadable per location, prints in B&W */}
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="font-display text-xs uppercase tracking-widest text-text-muted">
+                    Tag print logo
+                  </p>
+                  <p className="mt-1 text-sm text-text-muted">
+                    Shown in black &amp; white at the top of every QR tag for this location.
+                  </p>
+                  {/* Preview on white, grayscaled — a true preview of the sticker */}
+                  <div className="mt-2 flex h-24 items-center justify-center rounded-sm border border-border bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={l.printLogoUrl ?? l.logoUrl}
+                      alt={`${l.name} tag logo`}
+                      className="h-full w-auto max-w-full object-contain grayscale"
+                    />
+                  </div>
+                  <p className="mt-1 font-mono text-xs text-text-muted">
+                    {l.printLogoUrl ? "Custom logo" : "Default logo"}
+                  </p>
+                  <form action={uploadLocationPrintLogo} className="mt-2 flex flex-col gap-2">
+                    <input type="hidden" name="id" value={l.id} />
+                    <input
+                      type="file"
+                      name="logo"
+                      accept="image/png,image/jpeg,image/webp,image/avif"
+                      required
+                      aria-label={`Upload tag logo for ${l.name}`}
+                      className="text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-4 file:font-display file:uppercase file:tracking-wide file:text-text"
+                    />
+                    <button
+                      type="submit"
+                      className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
+                    >
+                      Upload logo
+                    </button>
+                  </form>
+                  {l.printLogoUrl && (
+                    <form action={resetLocationPrintLogo} className="mt-2">
+                      <input type="hidden" name="id" value={l.id} />
+                      <button
+                        type="submit"
+                        className="h-12 w-full rounded-sm border border-border font-display uppercase tracking-wide text-text-muted"
+                      >
+                        Use default logo
+                      </button>
+                    </form>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

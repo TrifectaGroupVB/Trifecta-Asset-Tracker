@@ -25,7 +25,7 @@ export type SaveUploadResult =
 
 export async function saveUpload(
   file: File,
-  subdir: "equipment" | "manuals" | "parts" | "requests",
+  subdir: "equipment" | "manuals" | "parts" | "requests" | "brand",
   kind: "image" | "pdf"
 ): Promise<SaveUploadResult> {
   if (file.size === 0) return { ok: false, error: "That file is empty." };
