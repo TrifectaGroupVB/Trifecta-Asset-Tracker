@@ -61,6 +61,12 @@ export default async function PrintBatchPage({
         >
           Download Images
         </a>
+        <a
+          href={`/dashboard/tags/print/${batch.batchNumber}/export-vector`}
+          className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
+        >
+          Vendor Files
+        </a>
         <PrintButton />
       </div>
 
