@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ImageUploadForm } from "@/components/dashboard/ImageUploadForm";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { prisma } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
@@ -144,23 +145,13 @@ export default async function EquipmentEditorPage({
                 />
               </div>
             )}
-            <form action={uploadEquipmentPhoto} className="mt-2 flex flex-col gap-2">
-              <input type="hidden" name="id" value={eq!.id} />
-              <input
-                type="file"
-                name="photo"
-                accept="image/*"
-                required
-                aria-label="Equipment photo"
-                className="text-sm text-text-muted file:mr-3 file:h-12 file:rounded-sm file:border file:border-border file:bg-surface file:px-4 file:font-display file:uppercase file:tracking-wide file:text-text"
-              />
-              <button
-                type="submit"
-                className="h-12 rounded-sm border border-border bg-surface font-display uppercase tracking-wide"
-              >
-                {eq!.photoUrl ? "Replace photo" : "Upload photo"}
-              </button>
-            </form>
+            <ImageUploadForm
+              action={uploadEquipmentPhoto}
+              hiddenFields={{ id: eq!.id }}
+              fieldName="photo"
+              ariaLabel="Equipment photo"
+              buttonLabel={eq!.photoUrl ? "Replace photo" : "Upload photo"}
+            />
           </section>
 
           {/* Spec fields */}
