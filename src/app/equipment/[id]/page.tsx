@@ -108,6 +108,18 @@ export default async function EquipmentDetailPage({
                 ),
               wide: true,
             },
+            ...(eq.notes
+              ? [
+                  {
+                    label: "Notes",
+                    value: (
+                      <span className="whitespace-pre-line">{eq.notes}</span>
+                    ),
+                    mono: false,
+                    wide: true,
+                  },
+                ]
+              : []),
           ]}
         />
       </div>
