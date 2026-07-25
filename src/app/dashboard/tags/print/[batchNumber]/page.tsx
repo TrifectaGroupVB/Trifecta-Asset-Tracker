@@ -75,7 +75,10 @@ export default async function PrintBatchPage({
         {stickers.map((s) => (
           <div
             key={s.code}
-            className="flex h-[3.4in] w-[2.5in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid"
+            // Keep each sticker whole across page breaks. `break-inside-avoid`
+            // is the modern property; the `[page-break-inside:avoid]` legacy
+            // alias covers Safari/Firefox, which still honor the old name.
+            className="flex h-[3.4in] w-[2.5in] flex-col items-center justify-center border border-dashed border-[#999] break-inside-avoid [page-break-inside:avoid]"
           >
             {/* Fixed logo box (not just width) so square badges (e.g. Shack)
                 shrink to fit instead of overflowing the sticker — object-contain

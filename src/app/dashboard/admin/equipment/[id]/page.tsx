@@ -5,7 +5,7 @@ import { CompressingForm } from "@/components/dashboard/CompressingForm";
 import { ImageUploadForm } from "@/components/dashboard/ImageUploadForm";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { prisma } from "@/lib/db";
-import { formatPrice } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 import { hasDashboardSession } from "@/lib/session";
 import {
   addManual,
@@ -14,6 +14,7 @@ import {
   saveEquipmentDetails,
   savePartRow,
   saveSpecRow,
+  setEquipmentDecommissioned,
   uploadEquipmentPhoto,
 } from "../../actions";
 
@@ -75,6 +76,28 @@ export default async function EquipmentEditorPage({
           Can&rsquo;t delete — this equipment has service history. Keep it for the
           records.
         </p>
+      )}
+
+      {!isNew && eq!.decommissionedAt && (
+        <div className="mt-3 rounded-sm border border-text-muted/40 bg-surface px-3 py-3">
+          <p className="font-display text-sm uppercase tracking-widest text-text-muted">
+            Decommissioned {formatDate(eq!.decommissionedAt)}
+          </p>
+          <p className="mt-1 text-sm text-text-muted">
+            Hidden from the public equipment list and its tags are voided. Service
+            history is kept.
+          </p>
+          <form action={setEquipmentDecommissioned} className="mt-3">
+            <input type="hidden" name="id" value={eq!.id} />
+            <input type="hidden" name="intent" value="restore" />
+            <button
+              type="submit"
+              className="h-12 rounded-sm border border-accent px-4 font-display uppercase tracking-wide text-accent"
+            >
+              Restore to active
+            </button>
+          </form>
+        </div>
       )}
 
       {/* Details */}
@@ -351,6 +374,31 @@ export default async function EquipmentEditorPage({
               </button>
             </CompressingForm>
           </section>
+
+          {/* Decommission — the preferred path for real units taken out of
+              service. Keeps history (unlike delete) and voids the tags. */}
+          {!eq!.decommissionedAt && (
+            <section className="mt-8 rounded-sm border border-border p-3">
+              <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
+                Retire this unit
+              </h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Marks it decommissioned: hidden from the public equipment list and
+                its QR tags are voided, but all service history is kept. Use this
+                for real equipment taken out of service.
+              </p>
+              <form action={setEquipmentDecommissioned} className="mt-3">
+                <input type="hidden" name="id" value={eq!.id} />
+                <input type="hidden" name="intent" value="decommission" />
+                <button
+                  type="submit"
+                  className="h-12 w-full rounded-sm border border-danger/60 font-display font-semibold uppercase tracking-wide text-danger"
+                >
+                  Decommission
+                </button>
+              </form>
+            </section>
+          )}
 
           {/* Danger zone */}
           <details className="mt-8 rounded-sm border border-danger/40">

@@ -101,6 +101,39 @@ export async function deleteEquipment(formData: FormData) {
   redirect("/dashboard/admin");
 }
 
+// Soft-retire (or restore) a unit. Unlike deleteEquipment this keeps all
+// history, so it works on equipment that has service records. Decommissioning
+// also voids the unit's tags in the same transaction — a retired unit's QR
+// stickers should scan as "inactive" rather than lead to a dead equipment page.
+// Restoring only clears the flag; it does NOT un-void tags, since re-tagging a
+// unit that's back in service is a deliberate physical step done on the tags page.
+export async function setEquipmentDecommissioned(formData: FormData) {
+  await assertSession();
+  const id = str(formData, "id");
+  const intent = str(formData, "intent"); // "decommission" | "restore"
+  if (!id) return;
+
+  if (intent === "restore") {
+    await prisma.equipment.update({
+      where: { id },
+      data: { decommissionedAt: null },
+    });
+  } else {
+    await prisma.$transaction([
+      prisma.equipment.update({
+        where: { id },
+        data: { decommissionedAt: new Date() },
+      }),
+      prisma.tag.updateMany({
+        where: { equipmentId: id, voided: false },
+        data: { voided: true },
+      }),
+    ]);
+  }
+  refreshEquipment(id);
+  revalidatePath("/dashboard/tags");
+}
+
 // ---- Spec fields ----
 
 export async function saveSpecRow(formData: FormData) {

@@ -156,9 +156,18 @@ export default async function AdminPage({
               >
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2">
-                    <span className="font-display font-semibold uppercase tracking-wide">
+                    <span
+                      className={`font-display font-semibold uppercase tracking-wide ${
+                        eq.decommissionedAt ? "text-text-muted line-through" : ""
+                      }`}
+                    >
                       {eq.name}
                     </span>
+                    {eq.decommissionedAt && (
+                      <span className="rounded-sm border border-text-muted/50 px-1.5 py-0.5 font-display text-[10px] uppercase tracking-widest text-text-muted">
+                        Retired
+                      </span>
+                    )}
                     {locations.length > 1 && (
                       <span className="font-display text-xs uppercase tracking-widest text-text-muted">
                         {eq.restaurant.name}

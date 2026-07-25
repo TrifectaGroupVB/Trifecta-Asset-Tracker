@@ -18,6 +18,7 @@ export default async function EquipmentIndexPage({
     ? await prisma.equipment.findMany({
         where: {
           restaurantId: location.id,
+          decommissionedAt: null, // retired units drop off the public index
           ...(query
             ? { OR: [{ name: { contains: query } }, { model: { contains: query } }] }
             : {}),

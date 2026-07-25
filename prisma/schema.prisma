@@ -42,6 +42,11 @@ model Equipment {
   photoUrl        String?
   warrantyExpires DateTime?
   notes           String?
+  // When set, this unit has been retired ("decommissioned"): hidden from the
+  // public equipment index and badged in admin. Null = active. Decommissioning
+  // also voids the unit's tags (see setEquipmentDecommissioned). History is
+  // kept — decommission is the soft-retire path, delete is the purge path.
+  decommissionedAt DateTime?
 
   restaurant      Location         @relation(fields: [restaurantId], references: [id])
   specFields      SpecField[]

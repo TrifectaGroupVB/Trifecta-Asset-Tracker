@@ -70,6 +70,11 @@ export default async function EquipmentDetailPage({
       <AppHeader />
       <main className="mx-auto w-full max-w-2xl">
       <div className="p-4 pb-0">
+        {eq.decommissionedAt && (
+          <p className="mb-3 rounded-sm border border-text-muted/40 bg-surface px-3 py-2 font-display text-sm uppercase tracking-widest text-text-muted">
+            Decommissioned {formatDate(eq.decommissionedAt)} — no longer in service
+          </p>
+        )}
         <DataPlate
           title={eq.name}
           subtitle={eq.manufacturer}
