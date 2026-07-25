@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CompressingForm } from "@/components/dashboard/CompressingForm";
 import { ImageUploadForm } from "@/components/dashboard/ImageUploadForm";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { prisma } from "@/lib/db";
@@ -248,7 +249,7 @@ export default async function EquipmentEditorPage({
             <ul className="mt-2 flex flex-col gap-3">
               {eq!.parts.map((p) => (
                 <li key={p.id} className="rounded-sm border border-border/60 p-2">
-                  <form action={savePartRow} className="flex flex-col gap-2">
+                  <CompressingForm action={savePartRow} className="flex flex-col gap-2">
                     <input type="hidden" name="equipmentId" value={eq!.id} />
                     <input type="hidden" name="partId" value={p.id} />
                     <div className="flex items-end gap-2">
@@ -314,11 +315,11 @@ export default async function EquipmentEditorPage({
                         Delete
                       </button>
                     </div>
-                  </form>
+                  </CompressingForm>
                 </li>
               ))}
             </ul>
-            <form action={savePartRow} className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+            <CompressingForm action={savePartRow} className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
               <input type="hidden" name="equipmentId" value={eq!.id} />
               <p className="font-display text-xs uppercase tracking-widest text-text-muted">
                 Add a part
@@ -348,7 +349,7 @@ export default async function EquipmentEditorPage({
               <button type="submit" className="h-12 rounded-sm border border-accent font-display uppercase tracking-wide text-accent">
                 Add part
               </button>
-            </form>
+            </CompressingForm>
           </section>
 
           {/* Danger zone */}

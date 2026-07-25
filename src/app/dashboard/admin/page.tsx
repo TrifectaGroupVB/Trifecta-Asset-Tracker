@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { deleteCredential } from "@/app/dashboard/webauthn-actions";
 import { BiometricEnrollButton } from "@/components/dashboard/BiometricEnrollButton";
+import { CompressingForm } from "@/components/dashboard/CompressingForm";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/db";
@@ -313,7 +314,7 @@ export default async function AdminPage({
                   <p className="mt-1 font-mono text-xs text-text-muted">
                     {l.printLogoUrl ? "Custom logo" : "Default logo"}
                   </p>
-                  <form action={uploadLocationPrintLogo} className="mt-2 flex flex-col gap-2">
+                  <CompressingForm action={uploadLocationPrintLogo} className="mt-2 flex flex-col gap-2">
                     <input type="hidden" name="id" value={l.id} />
                     <input
                       type="file"
@@ -329,7 +330,7 @@ export default async function AdminPage({
                     >
                       Upload logo
                     </button>
-                  </form>
+                  </CompressingForm>
                   {l.printLogoUrl && (
                     <form action={resetLocationPrintLogo} className="mt-2">
                       <input type="hidden" name="id" value={l.id} />
