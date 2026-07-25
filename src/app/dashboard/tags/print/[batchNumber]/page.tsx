@@ -45,29 +45,33 @@ export default async function PrintBatchPage({
 
   return (
     <main className="p-4 print:p-0">
-      <div className="mb-4 flex items-center gap-3 print:hidden">
+      <div className="mb-4 flex flex-wrap items-center gap-3 print:hidden">
         <Link
           href="/dashboard/tags"
           className="flex min-h-12 items-center font-display uppercase tracking-wide text-text-muted"
         >
           ‹ Tags
         </Link>
-        <h1 className="flex-1 font-display text-xl font-semibold uppercase tracking-wide">
+        <h1 className="min-w-0 flex-1 font-display text-xl font-semibold uppercase tracking-wide">
           Batch #{batch.batchNumber} — {restaurantName} — {batch.tags.length} stickers
         </h1>
-        <a
-          href={`/dashboard/tags/print/${batch.batchNumber}/export`}
-          className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
-        >
-          Download Images
-        </a>
-        <a
-          href={`/dashboard/tags/print/${batch.batchNumber}/export-vector`}
-          className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
-        >
-          Vendor Files
-        </a>
-        <PrintButton />
+        {/* Grouped so the actions wrap together to a new line on a phone
+            instead of running off the right edge; right-aligned on desktop. */}
+        <div className="flex flex-wrap gap-2 sm:ml-auto">
+          <a
+            href={`/dashboard/tags/print/${batch.batchNumber}/export`}
+            className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
+          >
+            Download Images
+          </a>
+          <a
+            href={`/dashboard/tags/print/${batch.batchNumber}/export-vector`}
+            className="flex h-12 items-center rounded-sm border border-border px-4 font-display uppercase tracking-wide text-text-muted"
+          >
+            Vendor Files
+          </a>
+          <PrintButton />
+        </div>
       </div>
 
       {/* The sheet: white even on screen so what you see is what prints */}
