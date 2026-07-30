@@ -6,7 +6,11 @@
 // is saved (see PartsFromManual.tsx / importParts). That's deliberate: a full
 // OEM parts list runs to hundreds of rows, most of which nobody stocks.
 
-import Anthropic from "@anthropic-ai/sdk";
+// The Anthropic SDK is imported for types only and loaded lazily at call time
+// — see the note in nameplate.ts for why nothing heavy loads at module scope
+// in this codebase. pdf-lib is already used by the sticker export, so it's a
+// known-good dependency in the server bundle.
+import type Anthropic from "@anthropic-ai/sdk";
 import { PDFDocument } from "pdf-lib";
 
 export type PartCandidate = {
@@ -160,7 +164,8 @@ export async function extractPartsFromPdf(
   const from = pageCount > MAX_PAGES ? pageCount - MAX_PAGES : 0; // 0-based
   const to = pageCount; // exclusive
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const { default: AnthropicClient } = await import("@anthropic-ai/sdk");
+  const anthropic = new AnthropicClient({ apiKey: process.env.ANTHROPIC_API_KEY });
   const found: PartCandidate[] = [];
   const seen = new Set<string>();
   let anyChunkSucceeded = false;

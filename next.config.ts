@@ -7,7 +7,14 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
   },
-  serverExternalPackages: ["@prisma/adapter-pg", "pg"],
+  // These ship native/wasm/worker assets that break when Next traces them into
+  // the bundle — they have to be required at runtime from node_modules instead.
+  serverExternalPackages: [
+    "@prisma/adapter-pg",
+    "pg",
+    "tesseract.js",
+    "@anthropic-ai/sdk",
+  ],
 };
 
 export default nextConfig;

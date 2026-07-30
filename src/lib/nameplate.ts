@@ -3,8 +3,13 @@
 // for that product — the two are deliberately separate, so improvements
 // here don't automatically flow back and vice versa).
 
-import Anthropic from "@anthropic-ai/sdk";
-import { createWorker } from "tesseract.js";
+// Both the Anthropic SDK and tesseract.js are loaded lazily, inside the
+// functions that need them, and never at module scope. tesseract.js in
+// particular drags in worker and wasm assets that don't survive being traced
+// into a serverless bundle — importing it at the top of this file took down
+// every server-rendered route on Vercel, not just the scan itself, because
+// they share one server bundle. Locally (dev and a production build) it was
+// invisible, since the files are right there on disk.
 
 export type NameplateSpec = { label: string; value: string };
 
@@ -88,6 +93,7 @@ async function parseWithClaudeVision(
   mimeType: ValidMimeType,
 ): Promise<ParseNameplateResult> {
   try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const message = await anthropic.messages.create({
       model: "claude-opus-5",
@@ -149,6 +155,7 @@ async function parseWithClaudeVision(
 // beats typing everything from scratch.
 async function parseWithOCR(imageBuffer: Buffer): Promise<ParseNameplateResult> {
   try {
+    const { createWorker } = await import("tesseract.js");
     const worker = await createWorker("eng");
     let text: string;
     try {
