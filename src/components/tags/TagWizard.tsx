@@ -12,6 +12,7 @@ import { scanNameplate } from "@/app/t/[code]/nameplate-actions";
 import { AppHeader } from "@/components/AppHeader";
 import { DataPlate } from "@/components/DataPlate";
 import type { NameplateResult, NameplateSpec } from "@/lib/nameplate";
+import { shrinkImage } from "@/lib/shrinkImage";
 
 type EquipmentOption = { id: string; name: string; location: string };
 type Step = "role" | "equip-mode" | "equip-new" | "equip-existing" | "station";
@@ -85,8 +86,24 @@ function NameplateScan({
     setScanning(true);
     setError(null);
     try {
+      // Shrink in the browser first, exactly like every other upload in this
+      // app. A phone photo is 2–8 MB, which exceeds the Server Action body
+      // limit and Vercel's request cap — without this the request is rejected
+      // in transit and the server never runs at all. Also normalizes HEIC to
+      // JPEG on the way. The server still converts and downsizes again as a
+      // backstop for browsers where this can't run.
+      const prepared = await shrinkImage(file);
+      // shrinkImage hands back the original if the browser couldn't decode it.
+      // Say so plainly rather than letting the request die in transit with a
+      // generic failure.
+      if (prepared.size > 4 * 1024 * 1024) {
+        setError(
+          "That photo is too large to send. Retake it at a lower resolution, or fill the fields in by hand."
+        );
+        return;
+      }
       const fd = new FormData();
-      fd.set("photo", file);
+      fd.set("photo", prepared);
       const result = await scanNameplate(fd);
       if (result.ok) onRead(result.data);
       else setError(result.error);
