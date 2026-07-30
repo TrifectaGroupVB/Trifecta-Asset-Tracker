@@ -60,6 +60,12 @@ function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// "ready" — key configured, scanning works.
+// "no-key"  — feature on but ANTHROPIC_API_KEY isn't set, so say so plainly
+//             instead of offering a button that can only fail.
+// "off"     — switched off in Settings; the control isn't rendered at all.
+export type NameplateScanState = "ready" | "no-key" | "off";
+
 // Camera-first "read the plate for me" control. Lives above the new-unit form
 // and only prefills it — everything stays editable, and creating the unit goes
 // through the same action as a hand-typed one.
@@ -117,8 +123,9 @@ function NameplateScan({
       </button>
       <p className="mt-2 text-xs text-text-muted">
         Photograph the metal plate on the unit and the fields below fill
-        themselves in. Check them before saving — a greasy or angled plate can
-        be misread.
+        themselves in. Straight off the camera is fine — iPhone photos are
+        converted automatically. Check the fields before saving; a greasy or
+        angled plate can be misread.
       </p>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
     </div>
@@ -129,12 +136,14 @@ export function TagWizard({
   code,
   equipment,
   restaurantName,
-  nameplateScanEnabled,
+  nameplateScan,
+  scannerDisabledCopy,
 }: {
   code: string;
   equipment: EquipmentOption[];
   restaurantName: string;
-  nameplateScanEnabled: boolean;
+  nameplateScan: NameplateScanState;
+  scannerDisabledCopy: string;
 }) {
   const [step, setStep] = useState<Step>("role");
   const [search, setSearch] = useState("");
@@ -281,7 +290,13 @@ export function TagWizard({
             Just the basics — parts and manuals get added later in Admin.
           </p>
 
-          {nameplateScanEnabled && (
+          {nameplateScan === "no-key" && (
+            <p className="mt-4 rounded-sm border border-border bg-surface px-3 py-3 text-sm text-text-muted">
+              {scannerDisabledCopy}
+            </p>
+          )}
+
+          {nameplateScan === "ready" && (
             <div className="mt-4">
               <NameplateScan
                 scanning={scanning}

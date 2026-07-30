@@ -20,7 +20,7 @@ export const FEATURE_LABELS: Record<FeatureKey, { title: string; blurb: string }
   nameplateScan: {
     title: "Nameplate scan",
     blurb:
-      "Adds a “Scan the data plate” button to the tag setup wizard — snap the plate and the new-unit form fills itself in.",
+      "Adds a “Scan the data plate” button to the tag setup wizard — snap the plate and the new-unit form fills itself in. Needs ANTHROPIC_API_KEY.",
   },
   partsImport: {
     title: "Parts from manual",

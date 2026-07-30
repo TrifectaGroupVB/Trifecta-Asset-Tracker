@@ -7,12 +7,13 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
   },
-  // These ship native/wasm/worker assets that break when Next traces them into
-  // the bundle — they have to be required at runtime from node_modules instead.
+  // These ship native/wasm assets that break when Next traces them into the
+  // bundle — they have to be required at runtime from node_modules instead.
   serverExternalPackages: [
     "@prisma/adapter-pg",
     "pg",
-    "tesseract.js",
+    "sharp",
+    "heic-convert",
     "@anthropic-ai/sdk",
   ],
 };

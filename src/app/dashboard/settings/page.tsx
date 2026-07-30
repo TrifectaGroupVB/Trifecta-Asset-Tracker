@@ -180,8 +180,9 @@ export default async function SettingsPage({
         {!env.anthropic && (
           <p className="mt-2 rounded-sm border border-danger/50 px-3 py-2 text-sm text-danger">
             Both of these need ANTHROPIC_API_KEY set in the Vercel project.
-            Without it, nameplate scanning falls back to slower on-device text
-            recognition and reading manuals is unavailable.
+            Without it they stay switched off in the app — the tag wizard says
+            so and falls back to typing the fields in, and reading manuals is
+            unavailable.
           </p>
         )}
       </section>
@@ -419,7 +420,7 @@ export default async function SettingsPage({
           <EnvRow
             label="ANTHROPIC_API_KEY"
             ok={env.anthropic}
-            note="Nameplate scanning and reading parts out of manuals."
+            note="Nameplate scanning and reading parts out of manuals. Without it both stay off."
           />
           <EnvRow
             label="RESEND_API_KEY"
