@@ -90,6 +90,11 @@ model Part {
   price       Float?
   photoUrl    String?
   vendorUrl   String? // link to the preferred vendor's product/order page
+  // Exploded-diagram callout ("14", "A-3") and printed quantity ("1", "AR").
+  // Both are free text, not numbers — manuals use letters and codes in these
+  // columns. Populated by the manual parts importer; editable by hand after.
+  refNumber   String?
+  qty         String?
 
   equipment  Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   orderLines PartOrderLine[]

@@ -2,7 +2,12 @@
 
 import { prisma } from "@/lib/db";
 import { URGENCIES, type Urgency } from "@/lib/constants";
+import { sendEmail } from "@/lib/email";
+import { formatRequestNumber } from "@/lib/format";
+import { getAdminEmail, isNotificationEnabled } from "@/lib/settings";
 import { saveUpload } from "@/lib/uploads";
+
+const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export type SubmitServiceRequestResult =
   | { ok: true; requestNumber: number; urgency: Urgency }
@@ -54,9 +59,48 @@ export async function submitServiceRequest(
     });
   });
 
+  // Urgent requests are the one case worth interrupting someone for — an
+  // urgent ticket that sits unseen until the next queue check is the whole
+  // problem. Everything else still waits to be picked up off the dashboard.
+  if (urgency === "URGENT") await alertAdminOfUrgentRequest(request.id);
+
   return {
     ok: true,
     requestNumber: request.requestNumber,
     urgency: urgency as Urgency,
   };
+}
+
+// Best-effort: a failure here must never cost the requester their ticket,
+// which is already committed by the time this runs.
+async function alertAdminOfUrgentRequest(requestId: string) {
+  try {
+    if (!(await isNotificationEnabled("urgentRequest"))) return;
+    const adminEmail = await getAdminEmail();
+    if (!adminEmail) return;
+
+    const request = await prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+      include: { equipment: { include: { restaurant: true } } },
+    });
+    if (!request) return;
+
+    await sendEmail({
+      to: adminEmail,
+      subject: `[URGENT] ${formatRequestNumber(request.requestNumber)} — ${request.equipment.name}`,
+      text: [
+        `New URGENT service request — ${formatRequestNumber(request.requestNumber)}`,
+        request.equipment.restaurant.name,
+        ``,
+        `Equipment: ${request.equipment.name} — ${request.equipment.location}`,
+        `Reported by: ${request.requesterName}`,
+        ``,
+        request.description,
+        ``,
+        `Request: ${BASE_URL}/dashboard/requests/${request.id}`,
+      ].join("\n"),
+    });
+  } catch (err) {
+    console.error("[request] urgent alert failed:", err);
+  }
 }

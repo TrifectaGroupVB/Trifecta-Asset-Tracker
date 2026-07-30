@@ -104,6 +104,30 @@ export function PinGate({
     });
   }
 
+  // Keyboard entry for desk use — the office admin unlocks this in a browser
+  // and shouldn't have to mouse-click six buttons. The pad stays exactly as
+  // it is for the kitchen tablet. Bound on window rather than a focused input
+  // because the PIN is rendered as dots, not a text field, and there's nothing
+  // to focus on arrival.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (checking || shaking) return;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        setDigits((prev) => (prev.length >= 6 ? prev : prev + e.key));
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        setDigits((prev) => prev.slice(0, -1));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setDigits("");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [checking, shaking]);
+
   async function unlockWithBiometrics() {
     setBiometricBusy(true);
     try {
@@ -129,6 +153,9 @@ export function PinGate({
         {title}
       </h1>
       <p className="mt-1 text-center text-sm text-text-muted">{subtitle}</p>
+      <p className="mt-1 text-center text-xs text-text-muted">
+        Type it or tap it in. Backspace deletes, Esc clears.
+      </p>
 
       <div
         aria-label={`${digits.length} of 6 digits entered`}

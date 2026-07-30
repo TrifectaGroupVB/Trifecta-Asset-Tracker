@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { formatOrderNumber } from "@/lib/format";
 import { hasDashboardSession } from "@/lib/session";
+import { isNotificationEnabled } from "@/lib/settings";
 
 export type SubmitPartOrderResult =
   | { ok: true; orderNumber: number }
@@ -69,7 +70,11 @@ export async function submitPartOrder(input: {
     lineText,
   ].join("\n");
 
-  if (adminEmail) {
+  // The order row is already written — the email is the optional part, so
+  // neither a switched-off notification nor a missing address loses the order.
+  if (!(await isNotificationEnabled("partOrder"))) {
+    console.log("[part-order] notification switched off in Settings; email skipped");
+  } else if (adminEmail) {
     await sendEmail({
       to: adminEmail,
       subject: `Part order ${orderLabel} — ${equipment.name}`,

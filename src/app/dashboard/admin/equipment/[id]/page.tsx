@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CompressingForm } from "@/components/dashboard/CompressingForm";
 import { ImageUploadForm } from "@/components/dashboard/ImageUploadForm";
+import { PartsFromManual } from "@/components/dashboard/PartsFromManual";
 import { PinGate } from "@/components/dashboard/PinGate";
 import { prisma } from "@/lib/db";
 import { formatDate, formatPrice } from "@/lib/format";
 import { hasDashboardSession } from "@/lib/session";
+import { isFeatureEnabled } from "@/lib/settings";
 import {
   addManual,
   deleteEquipment,
@@ -32,6 +34,12 @@ function dateValue(d: Date | null): string {
   return d ? d.toISOString().slice(0, 10) : "";
 }
 
+// Reading a whole manual PDF takes well past the platform's default function
+// timeout. Server Actions inherit the timeout of the page they're invoked
+// from, so the parts importer's budget is set here. 300s is the ceiling on
+// Vercel Pro; on Hobby it's capped lower and a long manual may still cut off.
+export const maxDuration = 300;
+
 export default async function EquipmentEditorPage({
   params,
   searchParams,
@@ -45,7 +53,10 @@ export default async function EquipmentEditorPage({
   const { error } = await searchParams;
   const isNew = id === "new";
 
-  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  const [locations, partsImportEnabled] = await Promise.all([
+    prisma.location.findMany({ orderBy: { name: "asc" } }),
+    isFeatureEnabled("partsImport"),
+  ]);
 
   const eq = isNew
     ? null
@@ -269,6 +280,7 @@ export default async function EquipmentEditorPage({
             <h2 className="font-display text-xs uppercase tracking-widest text-text-muted">
               Parts
             </h2>
+            {partsImportEnabled && <PartsFromManual equipmentId={eq!.id} />}
             <ul className="mt-2 flex flex-col gap-3">
               {eq!.parts.map((p) => (
                 <li key={p.id} className="rounded-sm border border-border/60 p-2">
@@ -307,6 +319,18 @@ export default async function EquipmentEditorPage({
                           placeholder={formatPrice(null)}
                           className={`${inputClass} font-mono`}
                         />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label htmlFor={`part-ref-${p.id}`} className={fieldLabelClass}>
+                          Ref # <span className="normal-case">(diagram)</span>
+                        </label>
+                        <input id={`part-ref-${p.id}`} name="refNumber" defaultValue={p.refNumber ?? ""} className={`${inputClass} font-mono`} />
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <label htmlFor={`part-qty-${p.id}`} className={fieldLabelClass}>Qty</label>
+                        <input id={`part-qty-${p.id}`} name="qty" defaultValue={p.qty ?? ""} className={`${inputClass} font-mono`} />
                       </div>
                     </div>
                     <label htmlFor={`part-vendor-${p.id}`} className={fieldLabelClass}>Vendor link</label>

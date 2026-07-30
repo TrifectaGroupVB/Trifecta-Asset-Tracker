@@ -6,6 +6,7 @@ import { PinGate } from "@/components/dashboard/PinGate";
 import { TagWizard } from "@/components/tags/TagWizard";
 import { prisma } from "@/lib/db";
 import { hasDashboardSession } from "@/lib/session";
+import { isFeatureEnabled } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Tag — Trifecta Asset Tracker",
@@ -71,17 +72,21 @@ export default async function TagPage({
   // Scoped to this tag's own restaurant — a blank Chix tag can only be
   // pointed at Chix equipment (or create new equipment, which inherits the
   // same restaurant automatically).
-  const equipment = await prisma.equipment.findMany({
-    where: { restaurantId: tag.batch.restaurantId },
-    select: { id: true, name: true, location: true },
-    orderBy: { name: "asc" },
-  });
+  const [equipment, nameplateScanEnabled] = await Promise.all([
+    prisma.equipment.findMany({
+      where: { restaurantId: tag.batch.restaurantId },
+      select: { id: true, name: true, location: true },
+      orderBy: { name: "asc" },
+    }),
+    isFeatureEnabled("nameplateScan"),
+  ]);
 
   return (
     <TagWizard
       code={tag.code}
       equipment={equipment}
       restaurantName={tag.batch.restaurant.name}
+      nameplateScanEnabled={nameplateScanEnabled}
     />
   );
 }

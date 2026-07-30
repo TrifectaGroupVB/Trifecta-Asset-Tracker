@@ -13,6 +13,30 @@ export type AssignTagResult =
     }
   | { ok: false; error: string };
 
+// The wizard sends nameplate specs as a JSON blob in a hidden field rather
+// than as N form fields, since the count isn't known until the plate is read.
+// Anything malformed is dropped rather than failing the whole create — the
+// unit itself matters more than its spec rows.
+function parseSpecs(raw: FormDataEntryValue | null): { label: string; value: string }[] {
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map((entry) => {
+      const row = entry as Record<string, unknown>;
+      const label = typeof row?.label === "string" ? row.label.trim() : "";
+      const value = typeof row?.value === "string" ? row.value.trim() : "";
+      return { label, value };
+    })
+    .filter((s) => s.label && s.value)
+    .slice(0, 30);
+}
+
 async function claimableTag(code: string) {
   const tag = await prisma.tag.findUnique({
     where: { code },
@@ -72,6 +96,7 @@ export async function createEquipmentAndAssignTag(
   const serial = String(formData.get("serial") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const photo = formData.get("photo");
+  const specs = parseSpecs(formData.get("specs"));
 
   if (!name || !manufacturer || !model || !serial || !location)
     return { ok: false, error: "Fill in every field — photo is the only optional one." };
@@ -95,6 +120,11 @@ export async function createEquipmentAndAssignTag(
       serial,
       location,
       photoUrl,
+      // Specs only ever arrive here from a nameplate scan (the hand-typed
+      // form has no spec inputs) — a plate carries voltage/refrigerant/BTU
+      // etc. that would otherwise be lost, and re-reading a mounted plate
+      // later usually means crawling behind the unit.
+      ...(specs.length > 0 ? { specFields: { create: specs } } : {}),
     },
   });
   await prisma.tag.update({

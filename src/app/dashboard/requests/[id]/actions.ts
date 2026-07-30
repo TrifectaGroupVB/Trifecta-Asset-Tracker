@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { formatRequestNumber } from "@/lib/format";
 import { hasDashboardSession } from "@/lib/session";
+import { isNotificationEnabled } from "@/lib/settings";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -66,11 +67,15 @@ export async function assignTech(formData: FormData) {
   }
   lines.push(``, `Request: ${BASE_URL}/dashboard/requests/${request.id}`);
 
-  await sendEmail({
-    to: tech.email,
-    subject: `${urgentTag}${label} — ${request.equipment.name}`,
-    text: lines.join("\n"),
-  });
+  // The assignment itself is already recorded — the email is the optional
+  // part, so a switched-off notification must not block the assignment.
+  if (await isNotificationEnabled("assignment")) {
+    await sendEmail({
+      to: tech.email,
+      subject: `${urgentTag}${label} — ${request.equipment.name}`,
+      text: lines.join("\n"),
+    });
+  }
 
   refresh(requestId);
 }

@@ -52,6 +52,12 @@ export default async function DashboardLayout({
         >
           Admin
         </Link>
+        <Link
+          href="/dashboard/settings"
+          className="flex min-h-12 items-center px-2 font-display font-semibold uppercase tracking-wide text-text-muted"
+        >
+          Settings
+        </Link>
         <form action={lockDashboard} className="ml-auto">
           <button
             type="submit"

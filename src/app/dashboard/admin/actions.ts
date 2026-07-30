@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getDashboardPin, hasDashboardSession, setSessionCookie } from "@/lib/session";
+import { hasDashboardSession } from "@/lib/session";
 import { saveUpload } from "@/lib/uploads";
 
 async function assertSession() {
@@ -211,6 +211,10 @@ export async function savePartRow(formData: FormData) {
   const priceRaw = str(formData, "price");
   const price = priceRaw ? Number.parseFloat(priceRaw) : null;
   const vendorUrl = normalizeUrl(str(formData, "vendorUrl"));
+  // Free text, not numbers — manuals use callouts like "A-3" and quantities
+  // like "AR" (as required). Empty clears the field rather than storing "".
+  const refNumber = str(formData, "refNumber") || null;
+  const qty = str(formData, "qty") || null;
   if (!name || !partNumber || (price != null && !Number.isFinite(price))) return;
 
   let photoUrl: string | undefined;
@@ -223,11 +227,28 @@ export async function savePartRow(formData: FormData) {
   if (partId) {
     await prisma.part.update({
       where: { id: partId },
-      data: { name, partNumber, price, vendorUrl, ...(photoUrl ? { photoUrl } : {}) },
+      data: {
+        name,
+        partNumber,
+        price,
+        vendorUrl,
+        refNumber,
+        qty,
+        ...(photoUrl ? { photoUrl } : {}),
+      },
     });
   } else {
     await prisma.part.create({
-      data: { equipmentId, name, partNumber, price, vendorUrl, photoUrl: photoUrl ?? null },
+      data: {
+        equipmentId,
+        name,
+        partNumber,
+        price,
+        vendorUrl,
+        refNumber,
+        qty,
+        photoUrl: photoUrl ?? null,
+      },
     });
   }
   refreshEquipment(equipmentId);
@@ -280,78 +301,4 @@ export async function saveTechRow(formData: FormData) {
     await prisma.tech.create({ data: { name, email, phone } });
   }
   revalidatePath("/dashboard/admin");
-}
-
-// ---- Settings ----
-
-export async function updateLocation(formData: FormData) {
-  await assertSession();
-  const id = str(formData, "id");
-  const name = str(formData, "name");
-  const address = str(formData, "address");
-  if (!id || !name || !address) return;
-  await prisma.location.update({ where: { id }, data: { name, address } });
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/");
-}
-
-// Upload a custom logo for this location's printed QR tags. Saved to
-// `printLogoUrl`, which both the on-screen print sheet and the PNG export use
-// (they resolve `printLogoUrl ?? logoUrl`). The logo is desaturated to
-// grayscale at print time, so any color logo prints in black & white.
-export async function uploadLocationPrintLogo(formData: FormData) {
-  await assertSession();
-  const id = str(formData, "id");
-  const file = formData.get("logo");
-  if (!id || !(file instanceof File)) return;
-  const saved = await saveUpload(file, "brand", "image");
-  if (!saved.ok) {
-    redirect("/dashboard/admin?error=logo-upload");
-  }
-  await prisma.location.update({ where: { id }, data: { printLogoUrl: saved.url } });
-  revalidatePath("/dashboard/admin");
-  redirect("/dashboard/admin?ok=logo-saved");
-}
-
-// Clear a location's custom print logo, falling back to its default logo.
-export async function resetLocationPrintLogo(formData: FormData) {
-  await assertSession();
-  const id = str(formData, "id");
-  if (!id) return;
-  await prisma.location.update({ where: { id }, data: { printLogoUrl: null } });
-  revalidatePath("/dashboard/admin");
-  redirect("/dashboard/admin?ok=logo-reset");
-}
-
-export async function updateAdminEmail(formData: FormData) {
-  await assertSession();
-  const email = str(formData, "adminEmail");
-  if (!email || !email.includes("@")) return;
-  await prisma.setting.upsert({
-    where: { key: "adminEmail" },
-    update: { value: email },
-    create: { key: "adminEmail", value: email },
-  });
-  revalidatePath("/dashboard/admin");
-}
-
-export async function changePin(formData: FormData) {
-  await assertSession();
-  const currentPin = str(formData, "currentPin");
-  const newPin = str(formData, "newPin");
-  const real = await getDashboardPin();
-  if (!real || currentPin !== real) {
-    redirect("/dashboard/admin?error=wrong-pin");
-  }
-  if (!/^\d{6}$/.test(newPin)) {
-    redirect("/dashboard/admin?error=bad-pin");
-  }
-  await prisma.setting.upsert({
-    where: { key: "dashboardPin" },
-    update: { value: newPin },
-    create: { key: "dashboardPin", value: newPin },
-  });
-  // Sessions are signed with the PIN — re-issue so this device stays unlocked
-  await setSessionCookie(newPin);
-  redirect("/dashboard/admin?ok=pin-changed");
 }

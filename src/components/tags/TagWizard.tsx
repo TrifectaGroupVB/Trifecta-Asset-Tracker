@@ -8,8 +8,10 @@ import {
   createEquipmentAndAssignTag,
   type AssignTagResult,
 } from "@/app/t/[code]/actions";
+import { scanNameplate } from "@/app/t/[code]/nameplate-actions";
 import { AppHeader } from "@/components/AppHeader";
 import { DataPlate } from "@/components/DataPlate";
+import type { NameplateResult, NameplateSpec } from "@/lib/nameplate";
 
 type EquipmentOption = { id: string; name: string; location: string };
 type Step = "role" | "equip-mode" | "equip-new" | "equip-existing" | "station";
@@ -58,14 +60,81 @@ function BackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// Camera-first "read the plate for me" control. Lives above the new-unit form
+// and only prefills it — everything stays editable, and creating the unit goes
+// through the same action as a hand-typed one.
+function NameplateScan({
+  onRead,
+  scanning,
+  setScanning,
+}: {
+  onRead: (data: NameplateResult) => void;
+  scanning: boolean;
+  setScanning: (v: boolean) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handle(file: File) {
+    setScanning(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("photo", file);
+      const result = await scanNameplate(fd);
+      if (result.ok) onRead(result.data);
+      else setError(result.error);
+    } catch {
+      setError("Couldn't read that photo — try again, or fill it in by hand.");
+    } finally {
+      setScanning(false);
+      // Let the same photo be picked twice in a row (e.g. after an error).
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="rounded-sm border border-accent/50 bg-surface p-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="Data plate photo"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handle(file);
+        }}
+      />
+      <button
+        type="button"
+        disabled={scanning}
+        onClick={() => inputRef.current?.click()}
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-accent font-display text-base font-semibold uppercase tracking-wide text-bg disabled:opacity-60"
+      >
+        {scanning ? "Reading the plate…" : "📷 Scan the data plate"}
+      </button>
+      <p className="mt-2 text-xs text-text-muted">
+        Photograph the metal plate on the unit and the fields below fill
+        themselves in. Check them before saving — a greasy or angled plate can
+        be misread.
+      </p>
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+    </div>
+  );
+}
+
 export function TagWizard({
   code,
   equipment,
   restaurantName,
+  nameplateScanEnabled,
 }: {
   code: string;
   equipment: EquipmentOption[];
   restaurantName: string;
+  nameplateScanEnabled: boolean;
 }) {
   const [step, setStep] = useState<Step>("role");
   const [search, setSearch] = useState("");
@@ -74,6 +143,13 @@ export function TagWizard({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Summary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Scan results feed the form through defaultValue, so the form is remounted
+  // (via `key`) on each scan — that keeps the inputs uncontrolled and freely
+  // editable afterwards instead of fighting React over every keystroke.
+  const [scan, setScan] = useState<NameplateResult | null>(null);
+  const [scanKey, setScanKey] = useState(0);
+  const [scanning, setScanning] = useState(false);
+  const [specs, setSpecs] = useState<NameplateSpec[]>([]);
 
   const filtered = equipment.filter((e) =>
     `${e.name} ${e.location}`.toLowerCase().includes(search.trim().toLowerCase())
@@ -202,25 +278,85 @@ export function TagWizard({
             New unit
           </h1>
           <p className="mt-1 text-sm text-text-muted">
-            Just the basics — specs, parts, and manuals get added later in Admin.
+            Just the basics — parts and manuals get added later in Admin.
           </p>
+
+          {nameplateScanEnabled && (
+            <div className="mt-4">
+              <NameplateScan
+                scanning={scanning}
+                setScanning={setScanning}
+                onRead={(data) => {
+                  setScan(data);
+                  setSpecs(data.specs);
+                  // The form remounts on the new key, which clears the file
+                  // input inside it — drop the filename label with it.
+                  setPhotoName(null);
+                  setScanKey((n) => n + 1);
+                }}
+              />
+            </div>
+          )}
+
+          {scan && (
+            <p className="mt-3 rounded-sm border border-status-completed/50 px-3 py-2 text-sm text-status-completed">
+              Plate read. Check every field below — anything the plate didn&rsquo;t
+              show clearly was left blank.
+            </p>
+          )}
+
           <form
+            key={scanKey}
             className="mt-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void run(createEquipmentAndAssignTag, new FormData(e.currentTarget));
+              const fd = new FormData(e.currentTarget);
+              fd.set("specs", JSON.stringify(specs));
+              void run(createEquipmentAndAssignTag, fd);
             }}
           >
             <label htmlFor="name" className={`${labelClass} mt-0`}>Name</label>
-            <input id="name" name="name" required placeholder="e.g. Ice Machine" className={inputClass} />
+            <input id="name" name="name" required defaultValue={scan?.name ?? ""} placeholder="e.g. Ice Machine" className={inputClass} />
             <label htmlFor="manufacturer" className={labelClass}>Manufacturer</label>
-            <input id="manufacturer" name="manufacturer" required placeholder="e.g. Hoshizaki" className={inputClass} />
+            <input id="manufacturer" name="manufacturer" required defaultValue={scan?.manufacturer ?? ""} placeholder="e.g. Hoshizaki" className={inputClass} />
             <label htmlFor="model" className={labelClass}>Model #</label>
-            <input id="model" name="model" required placeholder="From the nameplate" className={`${inputClass} font-mono`} />
+            <input id="model" name="model" required defaultValue={scan?.model ?? ""} placeholder="From the nameplate" className={`${inputClass} font-mono`} />
             <label htmlFor="serial" className={labelClass}>Serial #</label>
-            <input id="serial" name="serial" required placeholder="From the nameplate" className={`${inputClass} font-mono`} />
+            <input id="serial" name="serial" required defaultValue={scan?.serial ?? ""} placeholder="From the nameplate" className={`${inputClass} font-mono`} />
             <label htmlFor="location" className={labelClass}>Location</label>
             <input id="location" name="location" required placeholder="e.g. Bar — back counter" className={inputClass} />
+
+            {specs.length > 0 && (
+              <>
+                <p className={labelClass}>
+                  Specs from the plate{" "}
+                  <span className="normal-case">({specs.length})</span>
+                </p>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {specs.map((s, i) => (
+                    <li
+                      key={`${s.label}-${i}`}
+                      className="flex items-center gap-2 rounded-sm border border-border bg-surface px-3 py-2"
+                    >
+                      <span className="font-display text-xs uppercase tracking-widest text-text-muted">
+                        {s.label}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-sm">
+                        {s.value}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${s.label}`}
+                        onClick={() => setSpecs((prev) => prev.filter((_, n) => n !== i))}
+                        className="size-8 shrink-0 rounded-sm border border-border text-text-muted"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
 
             <label className={labelClass}>
               Photo <span className="normal-case">(optional)</span>
